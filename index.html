@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPSS Haftalık Çalışma Takip</title>
+    <meta name="description" content="KPSS sınavı için haftalık tekrar ve ders programı takip uygulaması">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-glow">📚</div>
+                    <div>
+                        <h1>KPSS Takip</h1>
+                        <p class="header-date" id="headerDate"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="countdown-box" id="countdownBox">
+                    <div class="countdown-inner">
+                        <span class="countdown-number" id="countdownNumber">0</span>
+                        <div class="countdown-text">
+                            <span class="countdown-label">gün kaldı</span>
+                            <span class="countdown-date">📍 4 Ekim 2026</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-badge" id="statToday">
+                    <span class="stat-number">0</span>
+                    <span class="stat-label">Kalan</span>
+                </div>
+                <div class="stat-badge completed-badge" id="statDone">
+                    <span class="stat-number">0</span>
+                    <span class="stat-label">Bitti</span>
+                </div>
+                <div class="stat-badge streak-badge" id="statStreak">
+                    <span class="stat-number">0%</span>
+                    <span class="stat-label">İlerleme</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="today" id="tabToday">
+                <span class="tab-icon">📅</span>
+                <span>Bugünün Programı</span>
+            </button>
+            <button class="tab-btn" data-tab="weekly" id="tabWeekly">
+                <span class="tab-icon">📝</span>
+                <span>Program Girişi</span>
+            </button>
+            <button class="tab-btn" data-tab="done" id="tabDone">
+                <span class="tab-icon">✅</span>
+                <span>Yapılanlar</span>
+            </button>
+        </nav>
+
+        <!-- Tab Content -->
+        <main class="tab-content">
+
+            <!-- TODAY TAB -->
+            <section class="tab-panel active" id="panelToday">
+                <div class="day-selector">
+                    <button class="day-btn" data-day="pazartesi">Pazartesi</button>
+                    <button class="day-btn" data-day="sali">Salı</button>
+                    <button class="day-btn" data-day="carsamba">Çarşamba</button>
+                    <button class="day-btn" data-day="persembe">Perşembe</button>
+                    <button class="day-btn" data-day="cuma">Cuma</button>
+                    <button class="day-btn" data-day="cumartesi">Cumartesi</button>
+                    <button class="day-btn" data-day="pazar">Pazar</button>
+                </div>
+
+                <!-- Weekly Progress Overview -->
+                <div class="weekly-overview" id="weeklyOverview"></div>
+
+                <div class="today-grid" id="todayContent">
+                    <div class="program-card lessons-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span class="card-icon">📖</span>
+                                <h2>Yeni Konular</h2>
+                            </div>
+                            <span class="card-count" id="lessonsCount">0</span>
+                        </div>
+                        <div class="task-list" id="lessonsList"></div>
+                    </div>
+
+                    <div class="program-card review-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span class="card-icon">🔄</span>
+                                <h2>Tekrar Programı</h2>
+                            </div>
+                            <span class="card-count" id="reviewCount">0</span>
+                        </div>
+                        <div class="task-list" id="reviewList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WEEKLY INPUT TAB -->
+            <section class="tab-panel" id="panelWeekly">
+                <div class="weekly-header">
+                    <h2>📋 Haftalık Program Girişi</h2>
+                    <p>Gün başlıklarıyla yapıştırın. Ders adını yazıp altına <strong>- ile</strong> konuları ekleyin.</p>
+                </div>
+
+                <div class="weekly-form">
+                    <div class="bulk-input-card">
+                        <div class="input-group">
+                            <label class="label-lessons">📖 Yeni Konular (Tüm Hafta)</label>
+                            <textarea
+                                id="inputBulkYeni"
+                                placeholder="Pazartesi&#10;Türkçe&#10;-Paragraf soruları&#10;-Sözcükte anlam&#10;&#10;Cumartesi&#10;Tarih&#10;-Osmanlı Devleti"
+                                rows="28"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <div class="bulk-input-card">
+                        <div class="input-group">
+                            <label class="label-review">🔄 Tekrar Programı (Tüm Hafta)</label>
+                            <textarea
+                                id="inputBulkTekrar"
+                                placeholder="Pazartesi&#10;Anayasa&#10;-Temel haklar&#10;&#10;Cumartesi&#10;Vatandaşlık&#10;-Genel tekrar"
+                                rows="28"
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-save" id="btnSave">
+                        <span>💾</span> Programı Kaydet
+                    </button>
+                    <button class="btn btn-reset-week" id="btnResetWeek">
+                        <span>🔄</span> Yeni Hafta
+                    </button>
+                    <button class="btn btn-clear" id="btnClear">
+                        <span>🗑️</span> Temizle
+                    </button>
+                </div>
+            </section>
+
+            <!-- DONE TAB -->
+            <section class="tab-panel" id="panelDone">
+                <div class="done-header">
+                    <h2>✅ Tamamlanan Konular</h2>
+                    <p>Bu hafta bitirdiğin konular</p>
+                </div>
+                <div class="done-content" id="doneContent"></div>
+            </section>
+        </main>
+    </div>
+
+    <div class="toast" id="toast">
+        <span class="toast-icon">✓</span>
+        <span class="toast-text" id="toastText"></span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
