@@ -63,6 +63,10 @@
                 <span class="tab-icon">✅</span>
                 <span>Yapılanlar</span>
             </button>
+            <button class="tab-btn" data-tab="history" id="tabHistory">
+                <span class="tab-icon">📊</span>
+                <span>Geçmiş</span>
+            </button>
         </nav>
 
         <!-- Tab Content -->
@@ -113,6 +117,7 @@
                 <div class="weekly-header">
                     <h2>📋 Haftalık Program Girişi</h2>
                     <p>Gün başlıklarıyla yapıştırın. Ders adını yazıp altına <strong>- ile</strong> konuları ekleyin.</p>
+                    <p class="auto-save-hint">💾 Yazdıklarınız otomatik olarak kaydedilir — sayfa kapansa bile kaybolmaz.</p>
                 </div>
 
                 <div class="weekly-form">
@@ -159,6 +164,15 @@
                     <p>Bu hafta bitirdiğin konular</p>
                 </div>
                 <div class="done-content" id="doneContent"></div>
+            </section>
+
+            <!-- HISTORY TAB -->
+            <section class="tab-panel" id="panelHistory">
+                <div class="done-header">
+                    <h2>📊 Geçmiş Haftalar</h2>
+                    <p>Hafta hafta ilerleme durumun ve arşivlenmiş programların</p>
+                </div>
+                <div class="history-content" id="historyContent"></div>
             </section>
         </main>
     </div>

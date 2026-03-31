@@ -10,17 +10,17 @@ const DAYS = [
     { key: 'pazar', label: 'Pazar', short: 'Paz', jsDay: 0 }
 ];
 
-const STORAGE_KEY = 'kpss_tracker_v2'; // New key to avoid old data conflicts
+const STORAGE_KEY = 'kpss_tracker_v2';
+const DRAFT_KEY = 'kpss_tracker_drafts';
+const HISTORY_KEY = 'kpss_tracker_history';
 const EXAM_DATE = new Date(2026, 9, 4); // 4 Ekim 2026
 let appData = null;
 let selectedDay = null;
 
 // ===== DAY NAME LOOKUP =====
 const DAY_LOOKUP = {};
-// Canonical day names for "contains" matching (longest first to avoid partial matches)
 const DAY_NAMES_SORTED = [];
 (function buildDayLookup() {
-    // All possible ways to write day names
     const aliases = {
         pazartesi: 'pazartesi', pzt: 'pazartesi',
         'salı': 'sali', sali: 'sali', sal: 'sali',
@@ -38,44 +38,34 @@ const DAY_NAMES_SORTED = [];
         DAY_LOOKUP[d.label.toLowerCase()] = d.key;
         DAY_LOOKUP[d.short.toLowerCase()] = d.key;
     });
-    // Build sorted list for contains matching (longest names first)
     Object.keys(DAY_LOOKUP).sort((a, b) => b.length - a.length).forEach(k => {
         DAY_NAMES_SORTED.push({ name: k, key: DAY_LOOKUP[k] });
     });
 })();
 
-// Turkish-safe lowercase
 function turkishLower(s) {
     return s.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
 }
 
-// Detect if a line is a day header, returns the day key or null
 function detectDayHeader(rawLine) {
     const trimmed = rawLine.trim();
     if (!trimmed) return null;
-    // If line starts with - or * or • it's a topic, not a day header
     if (/^[-*•]/.test(trimmed)) return null;
 
-    // Strip all non-letter characters and check exact match
     const stripped = turkishLower(trimmed).replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').trim();
     if (DAY_LOOKUP[stripped]) return DAY_LOOKUP[stripped];
 
-    // Normalize: remove numbers, punctuation, emojis, formatting chars
     const normalized = turkishLower(trimmed)
-        .replace(/[\d\.\,\;\:\!\?\(\)\[\]\{\}\*\#\>\<\=\+\_\"\'\/\\@\&\|\~\^`]/g, '')
+        .replace(/[\d\.\,\;\:\!\?\(\)\[\]\{\}\*\#\>\<\=\+\_\"\'\/ \\@\&\|\~\^`]/g, '')
         .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{200D}\u{20E3}]/gu, '')
         .replace(/[–—―‐‑‒…·•▪▸►→←↑↓«»""''⟨⟩📅📌📍✅❌☐☑]/g, '')
         .trim();
     if (DAY_LOOKUP[normalized]) return DAY_LOOKUP[normalized];
 
-    // Contains matching: if the line contains a day name (longest first)
     const lower = turkishLower(trimmed);
     for (const entry of DAY_NAMES_SORTED) {
-        // Skip very short names (2 chars like "per", "sal") unless the line is short too
         if (entry.name.length <= 3 && lower.length > 10) continue;
         if (lower.includes(entry.name)) {
-            // Make sure it's a header-like line (not a topic text that happens to contain a day name)
-            // If the line has a dash prefix, it's a topic
             if (/^[-*•]/.test(trimmed)) return null;
             return entry.key;
         }
@@ -95,16 +85,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFormActions();
     renderToday();
     renderDone();
+    renderHistory();
+    setupAutoSaveDrafts();
 });
 
 // ===== DATA =====
 function loadData() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        appData = raw ? JSON.parse(raw) : { days: {} };
+        appData = raw ? JSON.parse(raw) : { days: {}, weekLabel: getCurrentWeekLabel() };
     } catch {
-        appData = { days: {} };
+        appData = { days: {}, weekLabel: getCurrentWeekLabel() };
     }
+    if (!appData.weekLabel) appData.weekLabel = getCurrentWeekLabel();
     DAYS.forEach(d => {
         if (!appData.days[d.key]) {
             appData.days[d.key] = { tekrar: [], yeniKonular: [] };
@@ -118,6 +111,219 @@ function saveData() {
 
 function genId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+}
+
+// ===== WEEK LABEL HELPERS =====
+function getCurrentWeekLabel() {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((now - startOfYear) / (1000 * 60 * 60 * 24));
+    const weekNumber = Math.ceil((dayOfYear + startOfYear.getDay() + 1) / 7);
+    return `${now.getFullYear()}-H${weekNumber}`;
+}
+
+function getWeekDateRange() {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = d => `${d.getDate()} ${d.toLocaleDateString('tr-TR', { month: 'short' })}`;
+    return `${fmt(monday)} – ${fmt(sunday)}`;
+}
+
+// ===== DRAFT AUTO-SAVE =====
+function setupAutoSaveDrafts() {
+    const yeniEl = document.getElementById('inputBulkYeni');
+    const tekrarEl = document.getElementById('inputBulkTekrar');
+    
+    // Restore drafts
+    try {
+        const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+        if (drafts.yeni && yeniEl && !yeniEl.value.trim()) yeniEl.value = drafts.yeni;
+        if (drafts.tekrar && tekrarEl && !tekrarEl.value.trim()) tekrarEl.value = drafts.tekrar;
+    } catch {}
+
+    // Auto-save as user types (debounced)
+    let saveTimeout = null;
+    const autoSave = () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            const drafts = {
+                yeni: yeniEl ? yeniEl.value : '',
+                tekrar: tekrarEl ? tekrarEl.value : ''
+            };
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+        }, 500);
+    };
+
+    if (yeniEl) yeniEl.addEventListener('input', autoSave);
+    if (tekrarEl) tekrarEl.addEventListener('input', autoSave);
+}
+
+// ===== HISTORY =====
+function loadHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+function saveHistory(history) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+function archiveCurrentWeek() {
+    // Calculate stats
+    let totalTasks = 0, completedTasks = 0;
+    const daySummaries = {};
+    
+    DAYS.forEach(d => {
+        const dd = appData.days[d.key];
+        let dayTotal = 0, dayDone = 0;
+        const subjects = new Set();
+        
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            const items = dd[type] || [];
+            dayTotal += items.length;
+            dayDone += items.filter(t => t.completed).length;
+            items.forEach(t => { if (t.subject) subjects.add(t.subject); });
+        });
+        
+        totalTasks += dayTotal;
+        completedTasks += dayDone;
+        
+        if (dayTotal > 0) {
+            daySummaries[d.key] = {
+                label: d.label,
+                total: dayTotal,
+                completed: dayDone,
+                subjects: [...subjects]
+            };
+        }
+    });
+
+    if (totalTasks === 0) return; // Nothing to archive
+
+    const entry = {
+        id: genId(),
+        weekLabel: appData.weekLabel || getCurrentWeekLabel(),
+        dateRange: getWeekDateRange(),
+        archivedAt: new Date().toISOString(),
+        totalTasks,
+        completedTasks,
+        percentage: Math.round((completedTasks / totalTasks) * 100),
+        daySummaries
+    };
+
+    const history = loadHistory();
+    history.unshift(entry);
+    // Keep last 52 weeks max
+    if (history.length > 52) history.pop();
+    saveHistory(history);
+}
+
+function renderHistory() {
+    const container = document.getElementById('historyContent');
+    if (!container) return;
+
+    const history = loadHistory();
+
+    if (history.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">📊</span>
+                <p>Henüz geçmiş hafta kaydı yok</p>
+                <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
+                    "Yeni Hafta" butonuna bastığında mevcut hafta otomatik arşivlenir.
+                </p>
+            </div>`;
+        return;
+    }
+
+    // Summary stats
+    const totalWeeks = history.length;
+    const avgProgress = Math.round(history.reduce((sum, h) => sum + h.percentage, 0) / totalWeeks);
+    const totalCompleted = history.reduce((sum, h) => sum + h.completedTasks, 0);
+
+    let html = `
+        <div class="history-stats">
+            <div class="history-stat-card">
+                <span class="history-stat-number">${totalWeeks}</span>
+                <span class="history-stat-label">Hafta</span>
+            </div>
+            <div class="history-stat-card">
+                <span class="history-stat-number">${avgProgress}%</span>
+                <span class="history-stat-label">Ort. İlerleme</span>
+            </div>
+            <div class="history-stat-card">
+                <span class="history-stat-number">${totalCompleted}</span>
+                <span class="history-stat-label">Toplam Konu</span>
+            </div>
+        </div>
+
+        <div class="history-chart">
+            <div class="chart-title">📈 Haftalık İlerleme Grafiği</div>
+            <div class="chart-bars">
+                ${history.slice().reverse().map(h => `
+                    <div class="chart-bar-wrapper" title="${h.weekLabel}: %${h.percentage}">
+                        <div class="chart-bar" style="height: ${Math.max(h.percentage, 4)}%">
+                            <span class="chart-bar-value">${h.percentage}%</span>
+                        </div>
+                        <span class="chart-bar-label">${h.weekLabel.split('-')[1] || h.weekLabel}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="history-list">
+    `;
+
+    history.forEach(entry => {
+        const pctClass = entry.percentage >= 80 ? 'excellent' : entry.percentage >= 50 ? 'good' : 'low';
+        const dayCards = DAYS
+            .filter(d => entry.daySummaries[d.key])
+            .map(d => {
+                const ds = entry.daySummaries[d.key];
+                const dsPercent = ds.total > 0 ? Math.round((ds.completed / ds.total) * 100) : 0;
+                return `
+                    <div class="history-day-mini">
+                        <span class="history-day-name">${d.short}</span>
+                        <div class="history-day-bar">
+                            <div class="history-day-bar-fill" style="width:${dsPercent}%"></div>
+                        </div>
+                        <span class="history-day-stat">${ds.completed}/${ds.total}</span>
+                    </div>
+                `;
+            }).join('');
+
+        html += `
+            <div class="history-card">
+                <div class="history-card-header">
+                    <div class="history-card-left">
+                        <div class="history-week-label">${entry.weekLabel}</div>
+                        <div class="history-date-range">${entry.dateRange}</div>
+                    </div>
+                    <div class="history-card-right">
+                        <div class="history-pct ${pctClass}">${entry.percentage}%</div>
+                        <div class="history-task-count">${entry.completedTasks}/${entry.totalTasks} konu</div>
+                    </div>
+                </div>
+                <div class="history-card-body">
+                    ${dayCards}
+                </div>
+                <div class="history-progress-bar">
+                    <div class="history-progress-fill ${pctClass}" style="width:${entry.percentage}%"></div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 // ===== HEADER =====
@@ -145,7 +351,6 @@ function updateStats() {
     document.querySelector('#statToday .stat-number').textContent = remaining;
     document.querySelector('#statDone .stat-number').textContent = done;
     
-    // Overall weekly progress
     let totalAll = 0, totalDone = 0;
     DAYS.forEach(d => {
         const dd = appData.days[d.key];
@@ -215,7 +420,6 @@ function renderTaskList(containerId, tasks, type) {
         return;
     }
 
-    // Group by subject
     let html = '';
     let currentSubject = null;
 
@@ -235,7 +439,6 @@ function renderTaskList(containerId, tasks, type) {
         `;
     });
 
-    // Progress
     const all = tasks || [];
     const doneCount = all.filter(t => t.completed).length;
     const pct = all.length > 0 ? Math.round((doneCount / all.length) * 100) : 0;
@@ -268,8 +471,20 @@ function handleComplete(el, taskId, type) {
 function buildWeeklyForm() {
     const tekrarEl = document.getElementById('inputBulkTekrar');
     const yeniEl = document.getElementById('inputBulkYeni');
-    if (tekrarEl) tekrarEl.value = reconstructBulk('tekrar');
-    if (yeniEl) yeniEl.value = reconstructBulk('yeniKonular');
+    
+    // First try to load from saved program data, then check drafts
+    const tekrarFromData = reconstructBulk('tekrar');
+    const yeniFromData = reconstructBulk('yeniKonular');
+    
+    try {
+        const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+        // Use program data if available, otherwise use drafts
+        if (tekrarEl) tekrarEl.value = tekrarFromData || drafts.tekrar || '';
+        if (yeniEl) yeniEl.value = yeniFromData || drafts.yeni || '';
+    } catch {
+        if (tekrarEl) tekrarEl.value = tekrarFromData;
+        if (yeniEl) yeniEl.value = yeniFromData;
+    }
 }
 
 function reconstructBulk(type) {
@@ -312,7 +527,12 @@ function saveProgram() {
         appData.days[day.key].yeniKonular = mapToTasks(yeniByDay[day.key] || [], oldY);
     });
 
+    appData.weekLabel = getCurrentWeekLabel();
     saveData();
+    
+    // Clear drafts since we saved
+    localStorage.removeItem(DRAFT_KEY);
+    
     renderToday();
     renderDone();
     showToast('Haftalık program kaydedildi! 🎉');
@@ -320,13 +540,6 @@ function saveProgram() {
 }
 
 // ===== PARSER =====
-// Format:
-//   DayName
-//   SubjectName (no dash prefix)
-//   -Topic1
-//   -Topic2
-//   AnotherSubject
-//   -Topic3
 function parseBulkText(text) {
     const result = {};
     DAYS.forEach(d => { result[d.key] = []; });
@@ -337,10 +550,8 @@ function parseBulkText(text) {
     let currentSubject = null;
     let subjectHasTopics = false;
 
-    // Flush a subject that had no sub-topics as a standalone task
     function flushPendingSubject() {
         if (currentDay && currentSubject && !subjectHasTopics) {
-            // Subject itself is the task (e.g. "🚨 DENEME ÇÖZÜLECEK")
             const cleanText = currentSubject.replace(/^[-*•]\s*/, '').trim();
             if (cleanText) {
                 result[currentDay].push({ subject: null, text: cleanText });
@@ -352,7 +563,6 @@ function parseBulkText(text) {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
 
-        // Check if it's a day header using robust detection
         const detectedDay = detectDayHeader(trimmed);
         if (detectedDay) {
             flushPendingSubject();
@@ -364,7 +574,6 @@ function parseBulkText(text) {
 
         if (!currentDay) continue;
 
-        // Check if it's a topic (starts with - or * or •)
         const topicMatch = trimmed.match(/^[-*•]\s*(.*)/);
         if (topicMatch) {
             const topicText = topicMatch[1].trim();
@@ -373,16 +582,13 @@ function parseBulkText(text) {
                 result[currentDay].push({ subject: currentSubject, text: topicText });
             }
         } else {
-            // New subject header — flush previous one if it had no topics
             flushPendingSubject();
             currentSubject = trimmed;
             subjectHasTopics = false;
         }
     }
 
-    // Flush last pending subject
     flushPendingSubject();
-
     return result;
 }
 
@@ -403,9 +609,10 @@ function mapToTasks(parsed, oldItems) {
 
 function clearAll() {
     if (!confirm('Tüm programı silmek istediğinize emin misiniz?')) return;
-    appData = { days: {} };
+    appData = { days: {}, weekLabel: getCurrentWeekLabel() };
     DAYS.forEach(d => { appData.days[d.key] = { tekrar: [], yeniKonular: [] }; });
     saveData();
+    localStorage.removeItem(DRAFT_KEY);
     buildWeeklyForm();
     renderToday();
     renderDone();
@@ -413,7 +620,12 @@ function clearAll() {
 }
 
 function resetWeek() {
-    if (!confirm('Yeni haftaya geçilecek: tamamlanan konular sıfırlanacak ama program yapısı korunacak. Devam?')) return;
+    if (!confirm('Yeni haftaya geçilecek:\n\n✅ Mevcut hafta arşivlenecek\n🔄 Tamamlanan konular sıfırlanacak\n📋 Program yapısı korunacak\n\nDevam?')) return;
+    
+    // Archive current week first
+    archiveCurrentWeek();
+    
+    // Reset completions
     DAYS.forEach(d => {
         const dd = appData.days[d.key];
         ['tekrar', 'yeniKonular'].forEach(type => {
@@ -423,10 +635,13 @@ function resetWeek() {
             });
         });
     });
+    
+    appData.weekLabel = getCurrentWeekLabel();
     saveData();
     renderToday();
     renderDone();
-    showToast('Yeni hafta başlatıldı! 🚀');
+    renderHistory();
+    showToast('Yeni hafta başlatıldı! Geçmiş arşivlendi 🚀');
 }
 
 // ===== DONE =====
@@ -456,21 +671,32 @@ function renderDone() {
         grouped[item.dayKey].items.push(item);
     });
 
-    container.innerHTML = DAYS.filter(d => grouped[d.key]).map(d => {
+    let html = '<div class="done-grid">';
+    html += DAYS.filter(d => grouped[d.key]).map(d => {
         const g = grouped[d.key];
-        return `<div class="done-day-group">
-            <div class="done-day-title">📅 ${g.label}</div>
-            ${g.items.map(item => `
-                <div class="done-item">
-                    <span class="done-badge ${item.type === 'tekrar' ? 'review' : 'lessons'}">${item.type === 'tekrar' ? 'Tekrar' : 'Yeni'}</span>
-                    ${item.subject ? `<span class="done-subject">${escapeHtml(item.subject)} ›</span>` : ''}
-                    <span class="done-text">${escapeHtml(item.text)}</span>
-                    <span class="done-time">${fmtTime(item.completedAt)}</span>
-                    <button class="done-undo-btn" onclick="undoTask('${item.dayKey}','${item.type}','${item.id}')">Geri Al</button>
-                </div>
-            `).join('')}
+        return `<div class="done-day-card">
+            <div class="done-day-title">📅 ${g.label} <span class="done-day-count">${g.items.length}</span></div>
+            <div class="done-day-items">
+                ${g.items.map(item => `
+                    <div class="done-item">
+                        <div class="done-item-top">
+                            <span class="done-badge ${item.type === 'tekrar' ? 'review' : 'lessons'}">${item.type === 'tekrar' ? 'Tekrar' : 'Yeni'}</span>
+                            ${item.subject ? `<span class="done-subject">${escapeHtml(item.subject)}</span>` : ''}
+                        </div>
+                        <div class="done-item-bottom">
+                            <span class="done-text">${escapeHtml(item.text)}</span>
+                            <div class="done-item-actions">
+                                <span class="done-time">${fmtTime(item.completedAt)}</span>
+                                <button class="done-undo-btn" onclick="undoTask('${item.dayKey}','${item.type}','${item.id}')">Geri Al</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
         </div>`;
     }).join('');
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 function undoTask(dayKey, type, taskId) {
@@ -501,7 +727,6 @@ function renderWeeklyOverview() {
     const jsDay = new Date().getDay();
     const todayObj = DAYS.find(d => d.jsDay === jsDay) || DAYS[0];
 
-    // Check if any day has tasks
     const hasAnyTasks = DAYS.some(d => {
         const dd = appData.days[d.key];
         return (dd.tekrar || []).length > 0 || (dd.yeniKonular || []).length > 0;
