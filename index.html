@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KPSS Başarı Rehberi & Takip</title>
     <meta name="description" content="KPSS sınavı için Pomodoro destekli haftalık çalışma takip uygulaması">
+    <meta name="theme-color" content="#06080f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,6 +32,7 @@
                 </div>
             </div>
             <div class="header-right">
+                <button class="theme-toggle" id="btnThemeToggle" title="Tema Değiştir (T tuşu)">🌙</button>
                 <div class="mini-timer hidden" id="miniTimer" title="Pomodoro'ya Dön">🍅 <span>25:00</span></div>
                 
                 <div class="countdown-box" id="countdownBox">
@@ -295,6 +300,18 @@
                         <h3>⚠️ Tehlikeli Bölge</h3>
                         <p>Tüm verileri, geçmişi, notları ve rozetleri kalıcı olarak siler.</p>
                         <button class="btn btn-danger mt-2" id="btnHardReset">Sistemi Sıfırla</button>
+                    </div>
+
+                    <div class="setting-card" style="grid-column: 1 / -1;">
+                        <h3>⌨️ Klavye Kısayolları</h3>
+                        <p>Uygulama içinde hızlı erişim için aşağıdaki kısayolları kullanabilirsiniz.</p>
+                        <div class="shortcuts-grid">
+                            <div class="shortcut-item"><kbd>Space</kbd> <span>Pomodoro Başlat/Durdur</span></div>
+                            <div class="shortcut-item"><kbd>R</kbd> <span>Pomodoro Sıfırla</span></div>
+                            <div class="shortcut-item"><kbd>T</kbd> <span>Tema Değiştir</span></div>
+                            <div class="shortcut-item"><kbd>1</kbd>-<kbd>7</kbd> <span>Gün Seç (Pzt-Paz)</span></div>
+                            <div class="shortcut-item"><kbd>S</kbd> <span>Programı Kaydet</span></div>
+                        </div>
                     </div>
                 </div>
             </section>

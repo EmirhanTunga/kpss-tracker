@@ -42,6 +42,7 @@ let pomoIsRunning = false;
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     setupBasicUI();
+    setupTheme();
     setupTabs();
     setupDaySelector();
     buildWeeklyForm();
@@ -50,6 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupPomodoro();
     setupModals();
     setupSettings();
+    setupKeyboardShortcuts();
+    registerServiceWorker();
     
     // Initial Renders
     renderToday();
@@ -135,19 +138,124 @@ function showToast(msg, isAchievement = false) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-function playBeep() {
+/* --- GELİŞMİŞ SESLİ BİLDİRİMLER --- */
+function playSound(type) {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 nota
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        oscillator.start();
-        setTimeout(() => oscillator.stop(), 400);
-    } catch(e) {} // Fallback yok, ses veremiyoruz
+
+        switch(type) {
+            case 'complete': // Görev tamamlama - kısa tiz bip
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                oscillator.start(); setTimeout(() => oscillator.stop(), 150);
+                break;
+            case 'pomodoro': // Pomodoro bitti - melodi
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(523, audioCtx.currentTime);      // C5
+                oscillator.frequency.setValueAtTime(659, audioCtx.currentTime + 0.2); // E5
+                oscillator.frequency.setValueAtTime(784, audioCtx.currentTime + 0.4); // G5
+                oscillator.frequency.setValueAtTime(1047, audioCtx.currentTime + 0.6);// C6
+                oscillator.start(); setTimeout(() => oscillator.stop(), 800);
+                break;
+            case 'badge': // Rozet kazanma - özel jingle
+                oscillator.type = 'triangle';
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(554, audioCtx.currentTime + 0.15);
+                oscillator.frequency.setValueAtTime(659, audioCtx.currentTime + 0.3);
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.5);
+                oscillator.start(); setTimeout(() => oscillator.stop(), 700);
+                break;
+            case 'goal': // Hedef tamamlama - uzun zafer
+                oscillator.type = 'square';
+                gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(392, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(523, audioCtx.currentTime + 0.2);
+                oscillator.frequency.setValueAtTime(659, audioCtx.currentTime + 0.4);
+                oscillator.frequency.setValueAtTime(784, audioCtx.currentTime + 0.6);
+                oscillator.frequency.setValueAtTime(1047, audioCtx.currentTime + 0.8);
+                oscillator.start(); setTimeout(() => oscillator.stop(), 1200);
+                break;
+            default: // Basit bip
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                oscillator.start(); setTimeout(() => oscillator.stop(), 400);
+        }
+    } catch(e) {}
+}
+
+// Eski playBeep'i yeni sisteme yönlendir
+function playBeep() { playSound('default'); }
+
+/* --- TEMA GEÇİŞİ (KARANLIK/AYDINLIK) --- */
+function setupTheme() {
+    const saved = localStorage.getItem('kpss_theme') || 'dark';
+    applyTheme(saved);
+
+    document.getElementById('btnThemeToggle').addEventListener('click', toggleTheme);
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    localStorage.setItem('kpss_theme', next);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('btnThemeToggle');
+    if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+    // PWA theme-color güncelle
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = theme === 'light' ? '#f0f2f5' : '#06080f';
+}
+
+/* --- KLAVYE KISAYOLLARI --- */
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Input veya textarea içindeyse jönlendir
+        const tag = e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        switch(e.key) {
+            case ' ': // Space = Pomodoro başlat/durdur
+                e.preventDefault();
+                document.getElementById('btnPomoStart').click();
+                break;
+            case 'r': case 'R': // R = Pomodoro sıfırla
+                document.getElementById('btnPomoReset').click();
+                break;
+            case 't': case 'T': // T = Tema değiştir
+                toggleTheme();
+                break;
+            case 's': case 'S': // S = Programı kaydet (sadece program sekmesindeyse)
+                if (document.getElementById('panelWeekly').classList.contains('active')) {
+                    e.preventDefault();
+                    document.getElementById('btnSave').click();
+                }
+                break;
+            case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+                const dayIndex = parseInt(e.key) - 1;
+                const dayBtns = document.querySelectorAll('.day-btn');
+                if (dayBtns[dayIndex]) dayBtns[dayIndex].click();
+                break;
+        }
+    });
+}
+
+/* --- PWA SERVICE WORKER KAYDI --- */
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
 }
 
 /* --- TAB YÖNETİMİ --- */
@@ -282,6 +390,8 @@ function toggleTaskComplete(cb, taskId, type) {
     if(task.completed) {
         addPoints(10);
         confetti(30);
+        playSound('complete');
+        checkDailyGoalCompletion();
     } else {
         addPoints(-10);
     }
@@ -289,6 +399,18 @@ function toggleTaskComplete(cb, taskId, type) {
     saveData();
     checkBadges(); // Gamification check
     renderToday(); // re-render
+}
+
+function checkDailyGoalCompletion() {
+    const dayData = appData.days[selectedDay];
+    const all = [...dayData.yeniKonular, ...dayData.tekrar];
+    if (all.length === 0) return;
+    const doneCount = all.filter(t => t.completed).length;
+    const req = Math.ceil(all.length * (appData.settings.goalPct / 100));
+    if (doneCount >= req) {
+        playSound('goal');
+        showToast(`🎯 Günlük hedefine ulaştın! (${doneCount}/${all.length})`, true);
+    }
 }
 
 /* --- DRAG & DROP YAPISI (SÜRÜKLE BIRAK) --- */
@@ -390,7 +512,7 @@ function checkBadges() {
     saveData();
 
     if (newBadge) {
-        playBeep();
+        playSound('badge');
         confetti(100);
         showToast(`🏆 Yeni Başarı: ${BADGES_DEFS[newBadge].name}`, true);
         addPoints(50); // Rozet kazanana 50 puan bonus
@@ -509,6 +631,7 @@ function setupPomodoro() {
 
 function handlePomodoroComplete() {
     confetti(50);
+    playSound('pomodoro');
     showToast("✨ Süre Doldu! Odaklanma Başarılı.");
     
     if (pomoMode === 'work') {
