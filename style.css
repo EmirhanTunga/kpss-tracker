@@ -384,3 +384,83 @@ body::before {
     box-shadow: 0 2px 0 var(--border-subtle);
 }
 .shortcut-item span { color: var(--text-secondary); font-weight: 500; }
+
+/* ===== ARALIKLI TEKRAR (SPACED REPETITION) ===== */
+.spaced-repetition-box { background: var(--bg-card); border: 1px solid rgba(188, 140, 255, 0.3); border-radius: var(--radius-xl); margin-top: 25px; overflow: hidden; box-shadow: var(--shadow-card); }
+.spaced-repetition-box .card-header { background: linear-gradient(135deg, rgba(188, 140, 255, 0.08), rgba(88, 166, 255, 0.05)); padding: 15px 20px; border-bottom: 1px solid var(--border-subtle); }
+.sr-desc { font-size: 0.8rem; color: var(--text-muted); padding: 10px 20px 5px; }
+.sr-list { padding: 10px 15px; }
+.sr-item { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 15px; margin-bottom: 8px; border-radius: var(--radius-md); background: rgba(188, 140, 255, 0.05); border: 1px solid rgba(188, 140, 255, 0.1); }
+.sr-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.sr-subject { font-size: 0.7rem; color: var(--accent-purple); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
+.sr-text { font-size: 0.88rem; color: var(--text-primary); font-weight: 500; }
+.sr-interval { font-size: 0.72rem; color: var(--text-muted); }
+
+/* ===== ISI HARİTASI (HEATMAP) ===== */
+.heatmap-section { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); padding: 25px; margin-top: 25px; box-shadow: var(--shadow-card); }
+.heatmap-section h3 { font-size: 1rem; font-weight: 700; margin-bottom: 15px; }
+.heatmap-container { display: grid; grid-template-columns: repeat(18, 1fr); gap: 3px; }
+.hm-cell { aspect-ratio: 1; background: var(--accent-green); border-radius: 3px; transition: opacity 0.3s; cursor: crosshair; }
+.hm-cell:hover { transform: scale(1.5); z-index: 2; outline: 2px solid var(--accent-green); }
+.heatmap-legend { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 0.7rem; color: var(--text-muted); justify-content: flex-end; }
+.heatmap-scale { display: flex; gap: 3px; }
+.hm-box { width: 14px; height: 14px; background: var(--accent-green); border-radius: 2px; }
+
+/* ===== DERS BAZLI ANALİZ ===== */
+.subject-analysis { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); padding: 25px; margin-top: 25px; box-shadow: var(--shadow-card); }
+.subject-analysis h3 { font-size: 1rem; font-weight: 700; margin-bottom: 15px; }
+.subj-bar-item { margin-bottom: 14px; }
+.subj-bar-label { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 5px; color: var(--text-secondary); font-weight: 600; }
+.subj-bar-track { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+.subj-bar-fill { height: 100%; background: var(--gradient-blue); border-radius: 4px; transition: width 0.5s ease; }
+.weak-fill { background: var(--gradient-fire) !important; }
+
+/* ===== DENEME SINAVI ===== */
+.exams-header h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 5px; }
+.exams-header p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; }
+.exam-entry-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); padding: 25px; box-shadow: var(--shadow-card); margin-bottom: 25px; }
+.exam-entry-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 15px; }
+.exam-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+.exam-subjects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
+.exam-subj-input { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px; }
+.exam-subj-input label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.exam-net-row { display: flex; gap: 6px; align-items: center; }
+.exam-net-row input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 8px 10px; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem; outline: none; width: 60px; }
+.exam-net-row input:focus { border-color: var(--accent-blue); }
+.exam-net-val { font-size: 0.82rem; font-weight: 700; color: var(--accent-blue); white-space: nowrap; min-width: 55px; text-align: right; }
+
+.exam-history { margin-top: 10px; }
+.exam-history h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 15px; }
+.exam-chart-area { margin-bottom: 20px; }
+.exam-svg { width: 100%; max-height: 200px; background: var(--bg-elevated); border-radius: var(--radius-lg); padding: 10px; border: 1px solid var(--border-subtle); }
+.exam-cards { display: flex; flex-direction: column; gap: 15px; }
+.exam-result-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-card); }
+.exam-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+.exam-card-header strong { font-size: 0.95rem; color: var(--text-primary); display: block; }
+.exam-card-header small { font-size: 0.75rem; color: var(--text-muted); }
+.exam-total { text-align: right; }
+.exam-total-net { font-size: 1.6rem; font-weight: 900; color: var(--accent-blue); display: block; line-height: 1; }
+.exam-total small { font-size: 0.7rem; color: var(--text-muted); }
+.exam-up { color: var(--accent-green); font-size: 0.8rem; font-weight: 700; }
+.exam-down { color: var(--accent-red); font-size: 0.8rem; font-weight: 700; }
+.exam-same { color: var(--text-muted); font-size: 0.8rem; }
+.exam-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.exam-table th { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--border-subtle); font-weight: 600; }
+.exam-table td { font-size: 0.85rem; color: var(--text-primary); text-align: center; padding: 8px 4px; font-weight: 700; }
+
+/* ===== ZAYIF DERSLER ===== */
+.weak-subjects-box { background: rgba(248, 81, 73, 0.05); border: 1px solid rgba(248, 81, 73, 0.3); border-radius: var(--radius-xl); padding: 20px; margin-top: 20px; }
+.weak-subjects-box h3 { font-size: 1rem; font-weight: 700; color: var(--accent-red); margin-bottom: 8px; }
+.weak-subjects-box > p { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 15px; }
+.weak-list { display: flex; flex-direction: column; gap: 12px; }
+.weak-item { display: block; }
+.weak-name { font-size: 0.9rem; font-weight: 700; color: var(--accent-orange); display: block; margin-bottom: 3px; }
+.weak-detail { font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 6px; }
+
+/* ===== BİLDİRİM DURUMU ===== */
+.notif-status { margin-top: 10px; font-size: 0.85rem; }
+
+@media (max-width: 768px) {
+    .exam-form-grid, .exam-subjects-grid { grid-template-columns: 1fr; }
+    .heatmap-container { grid-template-columns: repeat(10, 1fr); }
+}

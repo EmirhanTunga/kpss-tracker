@@ -52,12 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setupModals();
     setupSettings();
     setupKeyboardShortcuts();
+    setupExams();
+    setupNotifications();
     registerServiceWorker();
     
     // Initial Renders
     renderToday();
     renderNotes();
     renderStats();
+    renderSpacedRepetition();
+    renderExams();
 });
 
 /* --- VERİ YÖNETİMİ --- */
@@ -96,6 +100,9 @@ function loadData() {
     if (!appData.streak) appData.streak = { current: 0, lastDate: null };
     if (!appData.points) appData.points = 0;
     if (!appData.settings) appData.settings = { goalPct: 80 };
+    if (!appData.spacedRep) appData.spacedRep = [];
+    if (!appData.exams) appData.exams = [];
+    if (!appData.heatmap) appData.heatmap = {};
 
     DAYS.forEach(d => {
         if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
@@ -392,6 +399,8 @@ function toggleTaskComplete(cb, taskId, type) {
         confetti(30);
         playSound('complete');
         checkDailyGoalCompletion();
+        recordHeatmap();
+        scheduleSpacedRepetition(task);
     } else {
         addPoints(-10);
     }
@@ -1138,3 +1147,405 @@ function mapToTasks(parsed, oldItems) {
         return exist || { id: genId(), text: p.text, subject: p.subject || null, completed: false, completedAt: null };
     });
 }
+
+/* ========================================
+   YENI MODÜLLER
+   ======================================== */
+
+const EXAM_SUBJECTS = [
+    { key: 'turkce', label: 'Türkçe', maxQ: 40 },
+    { key: 'matematik', label: 'Matematik', maxQ: 40 },
+    { key: 'tarih', label: 'Tarih', maxQ: 27 },
+    { key: 'cografya', label: 'Coğrafya', maxQ: 17 },
+    { key: 'vatandaslik', label: 'Vatandaşlık', maxQ: 15 },
+    { key: 'anayasa', label: 'Anayasa', maxQ: 5 },
+    { key: 'egitim', label: 'Eğitim Bil.', maxQ: 16 }
+];
+
+/* --- 1. ARALIKLI TEKRAR (SPACED REPETITION) --- */
+const SR_INTERVALS = [1, 3, 7, 21]; // gün
+
+function scheduleSpacedRepetition(task) {
+    // Zaten planlanmış mı kontrol et
+    const exists = appData.spacedRep.find(s => s.taskId === task.id && !s.done);
+    if (exists) return;
+
+    const today = new Date();
+    SR_INTERVALS.forEach(days => {
+        const reviewDate = new Date(today);
+        reviewDate.setDate(reviewDate.getDate() + days);
+        appData.spacedRep.push({
+            id: genId(),
+            taskId: task.id,
+            text: task.text,
+            subject: task.subject || 'Genel',
+            reviewDate: reviewDate.toISOString().split('T')[0],
+            interval: days,
+            done: false
+        });
+    });
+    saveData();
+}
+
+function renderSpacedRepetition() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dueItems = (appData.spacedRep || []).filter(s => s.reviewDate <= todayStr && !s.done);
+
+    const box = document.getElementById('spacedRepBox');
+    const list = document.getElementById('spacedRepList');
+    const count = document.getElementById('spacedRepCount');
+
+    if (dueItems.length === 0) { box.classList.add('hidden'); return; }
+
+    box.classList.remove('hidden');
+    count.textContent = dueItems.length;
+
+    list.innerHTML = dueItems.map(item => `
+        <div class="sr-item">
+            <div class="sr-info">
+                <span class="sr-subject">${escapeHtml(item.subject)}</span>
+                <span class="sr-text">${escapeHtml(item.text)}</span>
+                <span class="sr-interval">${item.interval} gün aralıklı tekrar</span>
+            </div>
+            <button class="btn btn-sm btn-success" onclick="markSrDone('${item.id}')">✓ Tekrar Ettim</button>
+        </div>
+    `).join('');
+}
+
+function markSrDone(srId) {
+    const item = appData.spacedRep.find(s => s.id === srId);
+    if (item) { item.done = true; addPoints(5); }
+    saveData();
+    renderSpacedRepetition();
+    showToast('Tekrar tamamlandı! 🧠');
+}
+
+/* --- 2. ISI HARİTASI (HEATMAP) --- */
+function recordHeatmap() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (!appData.heatmap[todayStr]) appData.heatmap[todayStr] = 0;
+    appData.heatmap[todayStr]++;
+    saveData();
+}
+
+function renderHeatmap() {
+    const container = document.getElementById('heatmapContainer');
+    if (!container) return;
+    const today = new Date();
+    let html = '';
+    const maxVal = Math.max(1, ...Object.values(appData.heatmap || {}));
+
+    for (let i = 89; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const val = (appData.heatmap || {})[dateStr] || 0;
+        const opacity = val === 0 ? 0.06 : Math.max(0.2, val / maxVal);
+        const title = `${dateStr}: ${val} görev`;
+        html += `<div class="hm-cell" style="opacity:${opacity}" title="${title}"></div>`;
+    }
+    container.innerHTML = html;
+}
+
+/* --- 3. DERS BAZLI ANALİZ --- */
+function renderSubjectAnalysis() {
+    const container = document.getElementById('subjectBars');
+    if (!container) return;
+
+    const subjects = {};
+    DAYS.forEach(d => {
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            (appData.days[d.key][type] || []).forEach(t => {
+                const subj = t.subject || 'Diğer';
+                if (!subjects[subj]) subjects[subj] = { total: 0, done: 0 };
+                subjects[subj].total++;
+                if (t.completed) subjects[subj].done++;
+            });
+        });
+    });
+
+    const entries = Object.entries(subjects);
+    if (entries.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Henüz program girilmedi.</p>';
+        return;
+    }
+
+    container.innerHTML = entries.map(([name, data]) => {
+        const pct = data.total > 0 ? Math.round((data.done / data.total) * 100) : 0;
+        return `
+            <div class="subj-bar-item">
+                <div class="subj-bar-label">
+                    <span>${escapeHtml(name)}</span>
+                    <span>${data.done}/${data.total} (${pct}%)</span>
+                </div>
+                <div class="subj-bar-track">
+                    <div class="subj-bar-fill" style="width:${pct}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/* --- 4. DENEME SINAVI TAKİBİ --- */
+function setupExams() {
+    // Tarih alanını bugünle doldur
+    const dateInput = document.getElementById('examDate');
+    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+
+    // Ders giriş alanlarını oluştur
+    const grid = document.getElementById('examSubjectsGrid');
+    if (grid) {
+        grid.innerHTML = EXAM_SUBJECTS.map(s => `
+            <div class="exam-subj-input">
+                <label>${s.label}</label>
+                <div class="exam-net-row">
+                    <input type="number" id="examD_${s.key}" placeholder="Doğru" min="0" max="${s.maxQ}">
+                    <input type="number" id="examY_${s.key}" placeholder="Yanlış" min="0" max="${s.maxQ}">
+                    <span class="exam-net-val" id="examN_${s.key}">0 net</span>
+                </div>
+            </div>
+        `).join('');
+
+        // Otomatik net hesapla
+        EXAM_SUBJECTS.forEach(s => {
+            const dEl = document.getElementById(`examD_${s.key}`);
+            const yEl = document.getElementById(`examY_${s.key}`);
+            const nEl = document.getElementById(`examN_${s.key}`);
+            const calc = () => {
+                const d = parseFloat(dEl.value) || 0;
+                const y = parseFloat(yEl.value) || 0;
+                const net = Math.max(0, d - (y * 0.25));
+                nEl.textContent = net.toFixed(1) + ' net';
+            };
+            dEl.addEventListener('input', calc);
+            yEl.addEventListener('input', calc);
+        });
+    }
+
+    // Kaydet
+    document.getElementById('btnSaveExam')?.addEventListener('click', () => {
+        const date = document.getElementById('examDate').value;
+        const name = document.getElementById('examName').value || 'İsimsiz Deneme';
+        if (!date) return showToast('Lütfen tarih girin.');
+
+        const results = {};
+        let totalNet = 0;
+        EXAM_SUBJECTS.forEach(s => {
+            const d = parseFloat(document.getElementById(`examD_${s.key}`).value) || 0;
+            const y = parseFloat(document.getElementById(`examY_${s.key}`).value) || 0;
+            const net = Math.max(0, d - (y * 0.25));
+            results[s.key] = { dogru: d, yanlis: y, net: parseFloat(net.toFixed(1)) };
+            totalNet += net;
+        });
+
+        appData.exams.push({
+            id: genId(), date, name,
+            results, totalNet: parseFloat(totalNet.toFixed(1))
+        });
+
+        saveData();
+        renderExams();
+        showToast('Deneme sonucu kaydedildi! 📊');
+        playSound('complete');
+
+        // Formu temizle
+        EXAM_SUBJECTS.forEach(s => {
+            document.getElementById(`examD_${s.key}`).value = '';
+            document.getElementById(`examY_${s.key}`).value = '';
+            document.getElementById(`examN_${s.key}`).textContent = '0 net';
+        });
+        document.getElementById('examName').value = '';
+    });
+}
+
+function renderExams() {
+    const exams = (appData.exams || []).sort((a, b) => a.date.localeCompare(b.date));
+    const cardsEl = document.getElementById('examCards');
+    const chartEl = document.getElementById('examChartArea');
+
+    if (exams.length === 0) {
+        if (cardsEl) cardsEl.innerHTML = '<div class="empty-state"><span class="empty-icon">📝</span><p>Henüz deneme sonucu eklenmedi.</p></div>';
+        if (chartEl) chartEl.innerHTML = '';
+        return;
+    }
+
+    // Gelişim Çizgi Grafiği (SVG)
+    if (chartEl && exams.length >= 2) {
+        const w = 600, h = 200, pad = 40;
+        const maxNet = Math.max(...exams.map(e => e.totalNet), 1);
+        const points = exams.map((e, i) => {
+            const x = pad + (i / (exams.length - 1)) * (w - pad * 2);
+            const y = h - pad - ((e.totalNet / maxNet) * (h - pad * 2));
+            return { x, y, net: e.totalNet, name: e.name };
+        });
+        const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
+
+        chartEl.innerHTML = `
+            <svg viewBox="0 0 ${w} ${h}" class="exam-svg">
+                <polyline points="${polyline}" fill="none" stroke="var(--accent-blue)" stroke-width="2.5" stroke-linejoin="round"/>
+                ${points.map(p => `
+                    <circle cx="${p.x}" cy="${p.y}" r="5" fill="var(--accent-blue)" stroke="var(--bg-primary)" stroke-width="2"/>
+                    <text x="${p.x}" y="${p.y - 12}" text-anchor="middle" fill="var(--text-secondary)" font-size="11" font-weight="700">${p.net.toFixed(1)}</text>
+                `).join('')}
+            </svg>
+        `;
+    }
+
+    // Sonuç Kartları (Son 5)
+    if (cardsEl) {
+        cardsEl.innerHTML = exams.slice(-5).reverse().map((exam, i) => {
+            const prevExam = exams.length > 1 && i === 0 ? exams[exams.length - 2] : null;
+            const diff = prevExam ? (exam.totalNet - prevExam.totalNet).toFixed(1) : null;
+            const diffStr = diff !== null ? (diff > 0 ? `<span class="exam-up">▲ +${diff}</span>` : diff < 0 ? `<span class="exam-down">▼ ${diff}</span>` : `<span class="exam-same">= 0</span>`) : '';
+
+            const subjectCells = EXAM_SUBJECTS.map(s => {
+                const r = exam.results[s.key];
+                return r ? `<td>${r.net.toFixed(1)}</td>` : `<td>-</td>`;
+            }).join('');
+
+            return `
+                <div class="exam-result-card">
+                    <div class="exam-card-header">
+                        <div>
+                            <strong>${escapeHtml(exam.name)}</strong>
+                            <small>${exam.date}</small>
+                        </div>
+                        <div class="exam-total">
+                            <span class="exam-total-net">${exam.totalNet.toFixed(1)}</span>
+                            <small>Toplam Net</small>
+                            ${diffStr}
+                        </div>
+                    </div>
+                    <table class="exam-table">
+                        <tr>${EXAM_SUBJECTS.map(s => `<th>${s.label}</th>`).join('')}</tr>
+                        <tr>${subjectCells}</tr>
+                    </table>
+                    <button class="btn-link" style="color:var(--accent-red);font-size:0.75rem" onclick="deleteExam('${exam.id}')">Sil</button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Zayıf Ders Analizi
+    analyzeWeakSubjects(exams);
+}
+
+function deleteExam(examId) {
+    appData.exams = appData.exams.filter(e => e.id !== examId);
+    saveData();
+    renderExams();
+}
+
+function analyzeWeakSubjects(exams) {
+    const box = document.getElementById('weakSubjectsBox');
+    const list = document.getElementById('weakSubjectsList');
+    if (!box || !list || exams.length < 1) { box?.classList.add('hidden'); return; }
+
+    // Son 3 denemenin ortalamasını al
+    const recent = exams.slice(-3);
+    const avgNets = {};
+    EXAM_SUBJECTS.forEach(s => {
+        let sum = 0, count = 0;
+        recent.forEach(e => {
+            if (e.results[s.key]) { sum += e.results[s.key].net; count++; }
+        });
+        if (count > 0) avgNets[s.key] = { label: s.label, avg: sum / count, maxQ: s.maxQ, pct: ((sum / count) / s.maxQ) * 100 };
+    });
+
+    // En düşük yüzdelileri bul
+    const sorted = Object.values(avgNets).sort((a, b) => a.pct - b.pct);
+    const weak = sorted.filter(s => s.pct < 50).slice(0, 3);
+
+    if (weak.length === 0) { box.classList.add('hidden'); return; }
+
+    box.classList.remove('hidden');
+    list.innerHTML = weak.map(s => `
+        <div class="weak-item">
+            <span class="weak-name">⚠️ ${s.label}</span>
+            <span class="weak-detail">Ort: ${s.avg.toFixed(1)} / ${s.maxQ} net (%${s.pct.toFixed(0)})</span>
+            <div class="subj-bar-track"><div class="subj-bar-fill weak-fill" style="width:${s.pct}%"></div></div>
+        </div>
+    `).join('');
+}
+
+/* --- 5. BİLDİRİM SİSTEMİ --- */
+function setupNotifications() {
+    const btn = document.getElementById('btnEnableNotif');
+    const status = document.getElementById('notifStatus');
+
+    if (!('Notification' in window)) {
+        if (status) status.textContent = 'Bu tarayıcı bildirimleri desteklemiyor.';
+        if (btn) btn.disabled = true;
+        return;
+    }
+
+    updateNotifStatus();
+
+    btn?.addEventListener('click', async () => {
+        const perm = await Notification.requestPermission();
+        updateNotifStatus();
+        if (perm === 'granted') {
+            showToast('Bildirimler açıldı! 🔔');
+            scheduleReminders();
+        }
+    });
+
+    // Eğer izin varsa hatırlatıcıları başlat
+    if (Notification.permission === 'granted') {
+        scheduleReminders();
+    }
+}
+
+function updateNotifStatus() {
+    const status = document.getElementById('notifStatus');
+    if (!status) return;
+    const perm = Notification.permission;
+    if (perm === 'granted') status.innerHTML = '<span style="color:var(--accent-green)">✅ Bildirimler aktif</span>';
+    else if (perm === 'denied') status.innerHTML = '<span style="color:var(--accent-red)">❌ Bildirimler engellenmiş. Tarayıcı ayarlarından açın.</span>';
+    else status.innerHTML = '<span style="color:var(--text-muted)">Henüz izin verilmemiş.</span>';
+}
+
+function scheduleReminders() {
+    // Her 2 saatte bir kontrol et
+    setInterval(() => {
+        const h = new Date().getHours();
+
+        // Sabah 9, Öğle 13, Akşam 19 hatırlatma
+        if (h === 9 || h === 13 || h === 19) {
+            const dueReps = (appData.spacedRep || []).filter(s => s.reviewDate <= new Date().toISOString().split('T')[0] && !s.done);
+            if (dueReps.length > 0) {
+                new Notification('🧠 Tekrar Zamanı!', { body: `${dueReps.length} konu tekrar bekliyor.`, icon: '🎓' });
+            }
+
+            // Bugün çalışma kontrolü
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (!appData.heatmap[todayStr] && h >= 19) {
+                new Notification('📚 Bugün henüz çalışmadın!', { body: 'Hadi bir Pomodoro ile başla!', icon: '🍅' });
+            }
+        }
+    }, 60 * 60 * 1000); // Saatte bir kontrol
+}
+
+/* --- 6. RENDER STATS GÜNCELLEME (HEATMAP + DERS ANALİZİ EKLENDİ) --- */
+const _origRenderStats = typeof renderStats === 'function' ? renderStats : null;
+// renderStats fonksiyonunu override etmeden, onun çağrıldığı yerlerde ek render ekleyelim
+(function() {
+    const origSetupTabs = setupTabs;
+    // renderStats çağrıldığında heatmap ve subject analysis da render edilsin
+    const origFn = window.renderStats;
+    if (origFn) {
+        window._baseRenderStats = origFn;
+    }
+})();
+
+// renderStats içine hook ekle - mevcut renderStats'ın sonuna ek render
+const _patchedRenderStatsOnce = (() => {
+    const origBody = renderStats;
+    renderStats = function() {
+        origBody.call(this);
+        renderHeatmap();
+        renderSubjectAnalysis();
+    };
+    return true;
+})();
+

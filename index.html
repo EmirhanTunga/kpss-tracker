@@ -67,11 +67,14 @@
             <button class="tab-btn" data-tab="weekly" id="tabWeekly">
                 <span class="tab-icon">📝</span><span>Program</span>
             </button>
+            <button class="tab-btn" data-tab="exams" id="tabExams">
+                <span class="tab-icon">📊</span><span>Deneme</span>
+            </button>
             <button class="tab-btn" data-tab="notes" id="tabNotes">
                 <span class="tab-icon">📓</span><span>Notlarım</span>
             </button>
             <button class="tab-btn" data-tab="stats" id="tabStats">
-                <span class="tab-icon">📊</span><span>İstatistik</span>
+                <span class="tab-icon">📈</span><span>İstatistik</span>
             </button>
             <button class="tab-btn" data-tab="settings" id="tabSettings">
                 <span class="tab-icon">⚙️</span><span>Ayarlar</span>
@@ -115,6 +118,19 @@
                         </div>
                         <div class="task-list" id="reviewList"></div>
                     </div>
+                </div>
+
+                <!-- Aralıklı Tekrar Hatırlatıcı -->
+                <div class="spaced-repetition-box hidden" id="spacedRepBox">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span class="card-icon">🧠</span>
+                            <h2>Aralıklı Tekrar</h2>
+                        </div>
+                        <span class="card-count" id="spacedRepCount">0</span>
+                    </div>
+                    <p class="sr-desc">Bugün tekrar etmen gereken konular (bilimsel aralıklı tekrar yöntemi)</p>
+                    <div class="sr-list" id="spacedRepList"></div>
                 </div>
             </section>
 
@@ -258,10 +274,73 @@
                     </div>
                 </div>
 
+                <!-- Ders Bazlı Analiz -->
+                <div class="subject-analysis" id="subjectAnalysis">
+                    <h3>📚 Ders Bazlı Analiz</h3>
+                    <div class="subject-bars" id="subjectBars"></div>
+                </div>
+
+                <!-- Isı Haritası -->
+                <div class="heatmap-section">
+                    <h3>🟩 Çalışma Haritası (Son 90 Gün)</h3>
+                    <div class="heatmap-container" id="heatmapContainer"></div>
+                    <div class="heatmap-legend">
+                        <span>Az</span>
+                        <div class="heatmap-scale">
+                            <div class="hm-box" style="opacity:0.15"></div>
+                            <div class="hm-box" style="opacity:0.35"></div>
+                            <div class="hm-box" style="opacity:0.6"></div>
+                            <div class="hm-box" style="opacity:0.85"></div>
+                            <div class="hm-box" style="opacity:1"></div>
+                        </div>
+                        <span>Çok</span>
+                    </div>
+                </div>
+
                 <!-- History Section (Hidden by default) -->
                 <div class="history-section hidden" id="historySection">
                     <h3>📁 Arşivlenmiş Haftalar</h3>
                     <div class="history-content" id="historyContent"></div>
+                </div>
+            </section>
+
+            <!-- DENEME SINAVI TAB -->
+            <section class="tab-panel" id="panelExams">
+                <div class="exams-header">
+                    <h2>📊 Deneme Sınavı Takibi</h2>
+                    <p>Her hafta sonu çözdüğün deneme sonuçlarını girerek gelişimini izle.</p>
+                </div>
+
+                <div class="exam-entry-card">
+                    <h3>➕ Yeni Deneme Sonucu Ekle</h3>
+                    <div class="exam-form-grid">
+                        <div class="input-group">
+                            <label>Tarih</label>
+                            <input type="date" id="examDate">
+                        </div>
+                        <div class="input-group">
+                            <label>Deneme Adı</label>
+                            <input type="text" id="examName" placeholder="Ör: ÖSYM 2024 Deneme 3">
+                        </div>
+                    </div>
+                    <div class="exam-subjects-grid" id="examSubjectsGrid">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                    <button class="btn btn-save mt-2" id="btnSaveExam">💾 Deneme Sonucunu Kaydet</button>
+                </div>
+
+                <!-- Deneme Geçmişi -->
+                <div class="exam-history" id="examHistory">
+                    <h3>📈 Deneme Geçmişi & Gelişim</h3>
+                    <div class="exam-chart-area" id="examChartArea"></div>
+                    <div class="exam-cards" id="examCards"></div>
+                </div>
+
+                <!-- Ağırlık Verilmesi Gereken Dersler -->
+                <div class="weak-subjects-box hidden" id="weakSubjectsBox">
+                    <h3>⚠️ Ağırlık Verilmesi Gereken Dersler</h3>
+                    <p>Son denemelerine göre en düşük performans gösterdiğin dersler:</p>
+                    <div class="weak-list" id="weakSubjectsList"></div>
                 </div>
             </section>
 
@@ -280,6 +359,13 @@
                             <input type="number" id="settingGoalPct" placeholder="Örn: 80" min="1" max="100">
                         </div>
                         <button class="btn btn-primary mt-2" id="btnSaveGoal">Hedefi Kaydet</button>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>🔔 Bildirimler</h3>
+                        <p>Tarayıcı bildirimleri ile çalışma hatırlatmaları al.</p>
+                        <button class="btn btn-primary mt-2" id="btnEnableNotif">🔔 Bildirimleri Aç</button>
+                        <div class="notif-status" id="notifStatus"></div>
                     </div>
 
                     <div class="setting-card">
