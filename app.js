@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderStats();
     renderSpacedRepetition();
     renderExams();
+    setupDailyChallenge();
 });
 
 /* --- VERİ YÖNETİMİ --- */
@@ -1545,7 +1546,194 @@ const _patchedRenderStatsOnce = (() => {
         origBody.call(this);
         renderHeatmap();
         renderSubjectAnalysis();
+        renderAIAdvice();
     };
     return true;
 })();
 
+/* --- 7. GÜNLÜK MEYDAN OKUMA --- */
+const CHALLENGE_TEMPLATES = [
+    { text: 'Bugün {n} Pomodoro seansı tamamla', check: (n) => (appData.pomodoro?.totalCompleted || 0) >= n, args: [2, 3, 4] },
+    { text: 'Bugün en az {n} konu tamamla', check: (n) => getTodayCompletedCount() >= n, args: [3, 5, 7] },
+    { text: 'Bugün bir ders notu yaz', check: () => { const t = new Date().toISOString().split('T')[0]; return Object.keys(appData.notes || {}).length > 0; }, args: [null] },
+    { text: 'Bugün {n} farklı dersten çalış', check: (n) => getTodaySubjectCount() >= n, args: [2, 3] },
+    { text: 'Bugün tüm yeni konuları tamamla', check: () => { const d = appData.days[selectedDay]; return d.yeniKonular.length > 0 && d.yeniKonular.every(t => t.completed); }, args: [null] },
+    { text: 'Bugün tüm tekrar konularını tamamla', check: () => { const d = appData.days[selectedDay]; return d.tekrar.length > 0 && d.tekrar.every(t => t.completed); }, args: [null] },
+    { text: 'Bugün en az {n} aralıklı tekrar tamamla', check: (n) => (appData.spacedRep || []).filter(s => s.done).length >= n, args: [1, 2] },
+];
+
+function getTodayCompletedCount() {
+    const d = appData.days[selectedDay];
+    return [...d.yeniKonular, ...d.tekrar].filter(t => t.completed).length;
+}
+
+function getTodaySubjectCount() {
+    const d = appData.days[selectedDay];
+    const subjects = new Set();
+    [...d.yeniKonular, ...d.tekrar].filter(t => t.completed).forEach(t => { if (t.subject) subjects.add(t.subject); });
+    return subjects.size;
+}
+
+function setupDailyChallenge() {
+    const CHALLENGE_STORAGE = 'kpss_daily_challenge';
+    const todayStr = new Date().toISOString().split('T')[0];
+    let stored = null;
+    
+    try { stored = JSON.parse(localStorage.getItem(CHALLENGE_STORAGE)); } catch(e) {}
+
+    if (!stored || stored.date !== todayStr) {
+        // Yeni gün = yeni meydan okuma seç
+        const template = CHALLENGE_TEMPLATES[Math.floor(Math.random() * CHALLENGE_TEMPLATES.length)];
+        const argOptions = template.args.filter(a => a !== null);
+        const arg = argOptions.length > 0 ? argOptions[Math.floor(Math.random() * argOptions.length)] : null;
+        const text = arg !== null ? template.text.replace('{n}', arg) : template.text;
+        
+        stored = { date: todayStr, text, templateIdx: CHALLENGE_TEMPLATES.indexOf(template), arg, claimed: false };
+        localStorage.setItem(CHALLENGE_STORAGE, JSON.stringify(stored));
+    }
+
+    const dcText = document.getElementById('dcText');
+    const claimBtn = document.getElementById('btnClaimChallenge');
+    
+    dcText.textContent = stored.text;
+
+    // Tamamlanmış mı kontrol et
+    function checkChallenge() {
+        const template = CHALLENGE_TEMPLATES[stored.templateIdx];
+        if (!template) return false;
+        try { return template.check(stored.arg); } catch(e) { return false; }
+    }
+
+    function updateChallengeUI() {
+        if (stored.claimed) {
+            claimBtn.textContent = '✓ Kazanıldı!';
+            claimBtn.disabled = true;
+            claimBtn.classList.add('dc-claimed');
+            document.getElementById('dailyChallengeBox').classList.add('dc-completed');
+        } else if (checkChallenge()) {
+            claimBtn.disabled = false;
+            claimBtn.textContent = '🎁 Ödülü Al!';
+        } else {
+            claimBtn.disabled = true;
+            claimBtn.textContent = 'Devam Et...';
+        }
+    }
+
+    updateChallengeUI();
+
+    // Her 5 saniyede kontrol et
+    setInterval(updateChallengeUI, 5000);
+
+    claimBtn.addEventListener('click', () => {
+        if (stored.claimed || !checkChallenge()) return;
+        stored.claimed = true;
+        localStorage.setItem(CHALLENGE_STORAGE, JSON.stringify(stored));
+        addPoints(25);
+        playSound('badge');
+        confetti(80);
+        showToast('🎉 Meydan okuma tamamlandı! +25 puan kazandın!', true);
+        updateChallengeUI();
+    });
+}
+
+/* --- 8. AKILLI TAVSİYE (AI ADVICE) --- */
+function renderAIAdvice() {
+    const container = document.getElementById('aiAdviceContent');
+    if (!container) return;
+
+    const tips = [];
+
+    // 1. Ders bazlı zayıf alan analizi
+    const subjects = {};
+    DAYS.forEach(d => {
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            (appData.days[d.key][type] || []).forEach(t => {
+                const subj = t.subject || 'Diğer';
+                if (!subjects[subj]) subjects[subj] = { total: 0, done: 0 };
+                subjects[subj].total++;
+                if (t.completed) subjects[subj].done++;
+            });
+        });
+    });
+
+    const subjectEntries = Object.entries(subjects).map(([name, data]) => ({
+        name, pct: data.total > 0 ? Math.round((data.done / data.total) * 100) : 0, total: data.total, done: data.done
+    }));
+
+    const weakSubjects = subjectEntries.filter(s => s.pct < 40 && s.total >= 2);
+    const strongSubjects = subjectEntries.filter(s => s.pct >= 80 && s.total >= 2);
+
+    if (weakSubjects.length > 0) {
+        tips.push({
+            icon: '⚠️',
+            type: 'warning',
+            title: 'Odaklanman Gereken Dersler',
+            text: `<strong>${weakSubjects.map(s => s.name).join(', ')}</strong> derslerinde tamamlama oranın düşük (%${weakSubjects.map(s=>s.pct).join(', %')}). Bu hafta bu derslere öncelik ver.`
+        });
+    }
+
+    if (strongSubjects.length > 0) {
+        tips.push({
+            icon: '🌟',
+            type: 'success',
+            title: 'Güçlü Yanların',
+            text: `<strong>${strongSubjects.map(s => s.name).join(', ')}</strong> derslerinde çok iyisin! Bu dersleri tekrar modunda tutarak bilgini pekiştir.`
+        });
+    }
+
+    // 2. Seri analizi
+    const streak = appData.streak?.current || 0;
+    if (streak === 0) {
+        tips.push({ icon: '🔥', type: 'warning', title: 'Çalışma Serisi Kırıldı!', text: 'Bugün en az 1 konu tamamlayarak serine başla. Küçük adımlar büyük sonuçlar doğurur.' });
+    } else if (streak >= 7) {
+        tips.push({ icon: '🚀', type: 'success', title: `${streak} Günlük Seri!`, text: 'Müthiş bir disiplin gösteriyorsun! Bu tempoyu korursan sınavı rahat geçersin.' });
+    }
+
+    // 3. Pomodoro verimi analizi
+    const pomoMins = appData.pomodoro?.totalMins || 0;
+    if (pomoMins < 50) {
+        tips.push({ icon: '🍅', type: 'info', title: 'Daha Fazla Odaklan', text: 'Toplam Pomodoro süren düşük. Günde en az 3 Pomodoro (75 dk) hedefle. Odaklı çalışma = verimli çalışma.' });
+    }
+
+    // 4. Deneme analizi
+    const exams = appData.exams || [];
+    if (exams.length >= 2) {
+        const last = exams[exams.length - 1];
+        const prev = exams[exams.length - 2];
+        const diff = last.totalNet - prev.totalNet;
+        if (diff > 0) {
+            tips.push({ icon: '📈', type: 'success', title: 'Deneme Neti Yükseliyor!', text: `Son denemen öncekine göre <strong>+${diff.toFixed(1)} net</strong> daha iyi. Bu ritmi devam ettir!` });
+        } else if (diff < -5) {
+            tips.push({ icon: '📉', type: 'warning', title: 'Deneme Netinde Düşüş', text: `Son denemen <strong>${diff.toFixed(1)} net</strong> düştü. Sınav stresini yönet ve zayıf derslerine odaklan.` });
+        }
+    } else if (exams.length === 0) {
+        tips.push({ icon: '📝', type: 'info', title: 'Deneme Sınavı Çöz', text: 'Henüz deneme sonucu girmedin. Haftalık en az 1 deneme çözerek gelişimini ölç.' });
+    }
+
+    // 5. Genel tavsiye
+    const totalTasks = subjectEntries.reduce((s, e) => s + e.total, 0);
+    const totalDone = subjectEntries.reduce((s, e) => s + e.done, 0);
+    const overallPct = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0;
+
+    if (overallPct >= 90) {
+        tips.push({ icon: '🏆', type: 'success', title: 'Hazırsın!', text: 'Programdaki konuların neredeyse tamamını bitirdin. Şimdi deneme çözerek pratiğie dök.' });
+    } else if (totalTasks === 0) {
+        tips.push({ icon: '📚', type: 'info', title: 'Program Gir', text: 'Henüz haftalık program girilmemiş. "Program" sekmesinden başla!' });
+    }
+
+    // Render
+    if (tips.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted)">Yeterli veri toplandığında burada kişisel tavsiyeler görünecek.</p>';
+        return;
+    }
+
+    container.innerHTML = tips.map(tip => `
+        <div class="ai-tip ai-tip-${tip.type}">
+            <div class="ai-tip-icon">${tip.icon}</div>
+            <div class="ai-tip-body">
+                <strong>${tip.title}</strong>
+                <p>${tip.text}</p>
+            </div>
+        </div>
+    `).join('');
+}

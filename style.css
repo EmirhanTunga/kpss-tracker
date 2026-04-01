@@ -463,4 +463,54 @@ body::before {
 @media (max-width: 768px) {
     .exam-form-grid, .exam-subjects-grid { grid-template-columns: 1fr; }
     .heatmap-container { grid-template-columns: repeat(10, 1fr); }
+    .daily-challenge { flex-direction: column; text-align: center; gap: 12px; }
+    .dc-right { flex-direction: row; gap: 10px; }
 }
+
+/* ===== GÜNLÜK MEYDAN OKUMA ===== */
+.daily-challenge {
+    display: flex; align-items: center; gap: 18px; padding: 16px 22px; margin-bottom: 20px;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.04));
+    border: 1px solid rgba(251, 191, 36, 0.25); border-radius: var(--radius-xl);
+    box-shadow: 0 4px 15px rgba(251, 191, 36, 0.08); transition: var(--transition);
+}
+.daily-challenge:hover { border-color: rgba(251, 191, 36, 0.4); }
+.daily-challenge.dc-completed { opacity: 0.6; border-color: var(--accent-green); background: linear-gradient(135deg, rgba(63, 185, 80, 0.08), rgba(57, 210, 192, 0.04)); }
+.dc-icon { font-size: 2rem; flex-shrink: 0; animation: float 3s ease-in-out infinite; }
+.dc-content { flex: 1; }
+.dc-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-gold); margin-bottom: 4px; }
+.dc-text { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.dc-right { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+.dc-reward { font-size: 0.8rem; font-weight: 800; color: var(--accent-gold); }
+.dc-btn { font-size: 0.78rem !important; padding: 8px 16px !important; white-space: nowrap; }
+.dc-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
+.dc-btn.dc-claimed { background: var(--accent-green) !important; }
+
+/* ===== AKILLI TAVSİYE (AI) ===== */
+.ai-advice-box {
+    background: var(--bg-card); border: 1px solid rgba(188, 140, 255, 0.2);
+    border-radius: var(--radius-xl); overflow: hidden; margin-bottom: 25px;
+    box-shadow: var(--shadow-card);
+}
+.ai-header {
+    display: flex; align-items: center; gap: 10px; padding: 15px 22px;
+    background: linear-gradient(135deg, rgba(188, 140, 255, 0.08), rgba(88, 166, 255, 0.04));
+    border-bottom: 1px solid var(--border-subtle);
+}
+.ai-header span { font-size: 1.5rem; }
+.ai-header h3 { font-size: 1rem; font-weight: 700; background: var(--gradient-blue); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ai-content { padding: 15px 22px; display: flex; flex-direction: column; gap: 12px; }
+
+.ai-tip { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: var(--radius-md); transition: var(--transition); }
+.ai-tip:hover { transform: translateX(4px); }
+.ai-tip-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+.ai-tip-body { flex: 1; }
+.ai-tip-body strong { font-size: 0.88rem; color: var(--text-primary); display: block; margin-bottom: 4px; }
+.ai-tip-body p { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
+
+.ai-tip-warning { background: rgba(248, 81, 73, 0.06); border: 1px solid rgba(248, 81, 73, 0.15); }
+.ai-tip-warning strong { color: var(--accent-orange); }
+.ai-tip-success { background: rgba(63, 185, 80, 0.06); border: 1px solid rgba(63, 185, 80, 0.15); }
+.ai-tip-success strong { color: var(--accent-green); }
+.ai-tip-info { background: rgba(88, 166, 255, 0.06); border: 1px solid rgba(88, 166, 255, 0.15); }
+.ai-tip-info strong { color: var(--accent-blue); }
