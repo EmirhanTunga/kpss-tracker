@@ -1,4 +1,10 @@
-// ===== KPSS Haftalık Çalışma Takip Uygulaması =====
+// ===== KPSS Başarı Rehberi - Ana Uygulama Dosyası =====
+
+/* --- SABİTLER VE VERİ YAPISI --- */
+const STORAGE_KEY = 'kpss_tracker_v2';
+const HISTORY_KEY = 'kpss_tracker_history';
+const DRAFT_KEY = 'kpss_tracker_drafts';
+const EXAM_DATE = new Date(2026, 9, 4); // 4 Ekim 2026
 
 const DAYS = [
     { key: 'pazartesi', label: 'Pazartesi', short: 'Pzt', jsDay: 1 },
@@ -10,110 +16,850 @@ const DAYS = [
     { key: 'pazar', label: 'Pazar', short: 'Paz', jsDay: 0 }
 ];
 
-const STORAGE_KEY = 'kpss_tracker_v2';
-const DRAFT_KEY = 'kpss_tracker_drafts';
-const HISTORY_KEY = 'kpss_tracker_history';
-const EXAM_DATE = new Date(2026, 9, 4); // 4 Ekim 2026
+// Kazanılabilir rozetlerin tanımları
+const BADGES_DEFS = {
+    'first_blood': { icon: '🎯', name: 'İlk Adım', desc: 'Sistemde ilk konunu başarıyla tamamladın.' },
+    'pomo_starter': { icon: '🍅', name: 'Pomodoro Çaylağı', desc: 'İlk Pomodoro seansını tamamladın.' },
+    'pomo_master': { icon: '🕰️', name: 'Odak Ustası', desc: 'Toplam 10 Pomodoro seansı tamamladın.' },
+    'streak_3': { icon: '🔥', name: 'Alev Aldın', desc: 'Üst üste 3 gün çalıştın.' },
+    'streak_7': { icon: '🚀', name: 'Roket', desc: 'Üst üste 7 gün çalıştın.' },
+    'night_owl': { icon: '🦉', name: 'Gece Kuşu', desc: 'Gece 23:00\'ten sonra ders çalıştın.' },
+    'note_taker': { icon: '📝', name: 'Kâtip', desc: 'Sisteme ilk notunu ekledin.' },
+    'half_way': { icon: '🎢', name: 'Yarı Yol', desc: 'Haftalık programın %50\'sini tamamladın.' }
+};
+
 let appData = null;
 let selectedDay = null;
 
-// ===== DAY NAME LOOKUP =====
-const DAY_LOOKUP = {};
-const DAY_NAMES_SORTED = [];
-(function buildDayLookup() {
-    const aliases = {
-        pazartesi: 'pazartesi', pzt: 'pazartesi',
-        'salı': 'sali', sali: 'sali', sal: 'sali',
-        'çarşamba': 'carsamba', carsamba: 'carsamba', 'çar': 'carsamba', car: 'carsamba',
-        'çarsamba': 'carsamba', 'carşamba': 'carsamba',
-        'perşembe': 'persembe', persembe: 'persembe', per: 'persembe',
-        'persembe': 'persembe', 'perşembe': 'persembe',
-        cuma: 'cuma', cum: 'cuma',
-        cumartesi: 'cumartesi', cmt: 'cumartesi',
-        pazar: 'pazar', paz: 'pazar'
-    };
-    Object.assign(DAY_LOOKUP, aliases);
-    DAYS.forEach(d => {
-        DAY_LOOKUP[d.key] = d.key;
-        DAY_LOOKUP[d.label.toLowerCase()] = d.key;
-        DAY_LOOKUP[d.short.toLowerCase()] = d.key;
-    });
-    Object.keys(DAY_LOOKUP).sort((a, b) => b.length - a.length).forEach(k => {
-        DAY_NAMES_SORTED.push({ name: k, key: DAY_LOOKUP[k] });
-    });
-})();
+// Pomodoro State
+let pomoInterval = null;
+let pomoTimeRemaining = 25 * 60;
+let pomoTotalTime = 25 * 60;
+let pomoMode = 'work'; // work, shortBreak, longBreak
+let pomoIsRunning = false;
 
-function turkishLower(s) {
-    return s.replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
-}
-
-function detectDayHeader(rawLine) {
-    const trimmed = rawLine.trim();
-    if (!trimmed) return null;
-    if (/^[-*•]/.test(trimmed)) return null;
-
-    const stripped = turkishLower(trimmed).replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ]/g, '').trim();
-    if (DAY_LOOKUP[stripped]) return DAY_LOOKUP[stripped];
-
-    const normalized = turkishLower(trimmed)
-        .replace(/[\d\.\,\;\:\!\?\(\)\[\]\{\}\*\#\>\<\=\+\_\"\'\/ \\@\&\|\~\^`]/g, '')
-        .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}\u{200D}\u{20E3}]/gu, '')
-        .replace(/[–—―‐‑‒…·•▪▸►→←↑↓«»""''⟨⟩📅📌📍✅❌☐☑]/g, '')
-        .trim();
-    if (DAY_LOOKUP[normalized]) return DAY_LOOKUP[normalized];
-
-    const lower = turkishLower(trimmed);
-    for (const entry of DAY_NAMES_SORTED) {
-        if (entry.name.length <= 3 && lower.length > 10) continue;
-        if (lower.includes(entry.name)) {
-            if (/^[-*•]/.test(trimmed)) return null;
-            return entry.key;
-        }
-    }
-
-    return null;
-}
-
-// ===== INIT =====
+/* --- BAŞLANGIÇ (INIT) --- */
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
-    setHeaderDate();
-    setCountdown();
+    setupBasicUI();
     setupTabs();
     setupDaySelector();
     buildWeeklyForm();
-    setupFormActions();
-    renderToday();
-    renderDone();
-    renderHistory();
     setupAutoSaveDrafts();
+    setupFormActions();
+    setupPomodoro();
+    setupModals();
+    setupSettings();
+    
+    // Initial Renders
+    renderToday();
+    renderNotes();
+    renderStats();
 });
 
-// ===== DATA =====
+/* --- VERİ YÖNETİMİ --- */
 function loadData() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        appData = raw ? JSON.parse(raw) : { days: {}, weekLabel: getCurrentWeekLabel() };
-    } catch {
-        appData = { days: {}, weekLabel: getCurrentWeekLabel() };
-    }
-    if (!appData.weekLabel) appData.weekLabel = getCurrentWeekLabel();
-    DAYS.forEach(d => {
-        if (!appData.days[d.key]) {
-            appData.days[d.key] = { tekrar: [], yeniKonular: [] };
+    appData = null;
+    
+    // Geçmiş tüm anahtarları tarayarak en dolu olanını (kaybolan veriyi) kurtar
+    const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
+    
+    for (const key of keysToCheck) {
+        if (!appData) {
+            try {
+                let raw = localStorage.getItem(key);
+                if (raw) {
+                    let parsed = JSON.parse(raw);
+                    let hasTask = false;
+                    for (let d of Object.values(parsed.days || {})) {
+                        if (((d.tekrar || []).length > 0) || ((d.yeniKonular || []).length > 0)) hasTask = true;
+                    }
+                    if (hasTask) appData = parsed;
+                }
+            } catch(e) {}
         }
+    }
+    
+    if (!appData) {
+        // Hiçbirinde veri yoksa boş başlat
+        let raw = localStorage.getItem(STORAGE_KEY);
+        appData = raw ? JSON.parse(raw) : { weekLabel: getCurrentWeekLabel(), days: {} };
+    }
+
+    // Yeni model default değerleri
+    if (!appData.notes) appData.notes = {};
+    if (!appData.pomodoro) appData.pomodoro = { totalCompleted: 0, totalMins: 0, history: [] };
+    if (!appData.badges) appData.badges = [];
+    if (!appData.streak) appData.streak = { current: 0, lastDate: null };
+    if (!appData.points) appData.points = 0;
+    if (!appData.settings) appData.settings = { goalPct: 80 };
+
+    DAYS.forEach(d => {
+        if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
     });
+
+    saveData();
+    updateHeaderStats();
 }
 
 function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
 }
 
-function genId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
+
+/* --- TEMEL UI YARDIMCILARI --- */
+function setupBasicUI() {
+    // Tarih Set
+    const now = new Date();
+    document.getElementById('headerDate').textContent = now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
+    // Geri Sayım
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diff = EXAM_DATE - today;
+    document.getElementById('countdownNumber').textContent = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
-// ===== WEEK LABEL HELPERS =====
+function updateHeaderStats() {
+    document.getElementById('headerStreak').textContent = appData.streak?.current || 0;
+    document.getElementById('headerPoints').textContent = appData.points || 0;
+}
+
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function showToast(msg, isAchievement = false) {
+    const t = document.getElementById('toast');
+    document.getElementById('toastText').textContent = msg;
+    t.className = `toast ${isAchievement ? 'toast-achievement' : ''}`;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function playBeep() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 nota
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 400);
+    } catch(e) {} // Fallback yok, ses veremiyoruz
+}
+
+/* --- TAB YÖNETİMİ --- */
+function setupTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            const panelName = 'panel' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1);
+            const panel = document.getElementById(panelName);
+            if (panel) { 
+                panel.classList.add('active'); 
+                if (btn.dataset.tab === 'stats') renderStats();
+                if (btn.dataset.tab === 'notes') renderNotes();
+                
+                // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
+                const miniT = document.getElementById('miniTimer');
+                if (pomoIsRunning && btn.dataset.tab !== 'pomodoro') {
+                    miniT.classList.remove('hidden');
+                } else {
+                    miniT.classList.add('hidden');
+                }
+            }
+        });
+    });
+}
+
+function setupDaySelector() {
+    const jsDay = new Date().getDay();
+    const todayObj = DAYS.find(d => d.jsDay === jsDay) || DAYS[0];
+    selectedDay = todayObj.key;
+
+    const container = document.getElementById('daySelector');
+    container.innerHTML = DAYS.map(d => {
+        const isToday = d.jsDay === jsDay ? 'today' : '';
+        const isActive = d.key === selectedDay ? 'active' : '';
+        return `<button class="day-btn ${isActive} ${isToday}" data-day="${d.key}">${d.label}</button>`;
+    }).join('');
+
+    container.querySelectorAll('.day-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            container.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedDay = btn.dataset.day;
+            renderToday();
+        });
+    });
+}
+
+/* --- RENDER TODAY (DRAG & DROP DESTEKLİ) --- */
+function renderToday() {
+    const dayData = appData.days[selectedDay];
+    if (!dayData) return;
+
+    renderTaskList('lessonsList', dayData.yeniKonular, 'yeniKonular');
+    renderTaskList('reviewList', dayData.tekrar, 'tekrar');
+
+    const countItems = list => (list || []).filter(t => !t.completed).length;
+    document.getElementById('lessonsCount').textContent = countItems(dayData.yeniKonular);
+    document.getElementById('reviewCount').textContent = countItems(dayData.tekrar);
+
+    renderWeeklyOverview();
+    updatePomoTaskSelect(dayData);
+    
+    // Hedef render
+    const all = [...dayData.yeniKonular, ...dayData.tekrar];
+    if(all.length > 0) {
+        document.getElementById('dailyGoalDisplay').classList.remove('hidden');
+        const req = Math.ceil(all.length * (appData.settings.goalPct / 100));
+        document.getElementById('dailyGoalText').textContent = `En az ${req} konu bitir (%${appData.settings.goalPct})`;
+    } else {
+        document.getElementById('dailyGoalDisplay').classList.add('hidden');
+    }
+}
+
+function renderTaskList(containerId, tasks, type) {
+    const container = document.getElementById(containerId);
+    
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = `<div class="empty-state"><span class="empty-icon">🏖️</span><p>Bugün için plan yok.</p></div>`;
+        return;
+    }
+
+    let html = '';
+    let currentSubject = null;
+
+    tasks.forEach((task, index) => {
+        if (task.subject && task.subject !== currentSubject) {
+            currentSubject = task.subject;
+            html += `<div class="subject-header">${escapeHtml(currentSubject)}</div>`;
+        }
+        
+        const hasNote = appData.notes[task.id] && appData.notes[task.id].trim() !== '';
+        
+        let checkedAttr = task.completed ? 'checked' : '';
+        let opacityStyle = task.completed ? 'opacity: 0.5; filter: grayscale(1);' : '';
+
+        html += `
+            <div class="task-item" draggable="true" data-id="${task.id}" data-type="${type}" data-index="${index}" style="${opacityStyle}">
+                <label class="task-checkbox">
+                    <input type="checkbox" ${checkedAttr} onchange="toggleTaskComplete(this, '${task.id}', '${type}')">
+                    <span class="checkmark"></span>
+                </label>
+                <span class="task-text" style="${task.completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(task.text)}</span>
+                <div class="task-actions">
+                    <button class="task-action-btn ${hasNote ? 'has-note' : ''}" onclick="openNoteModal('${task.id}', '${escapeHtml(task.subject || task.text)}')" title="Not Ekle/Düzenle">📝</button>
+                    ${!task.completed ? `<button class="task-action-btn" onclick="focusPomo('${task.id}')" title="Bu konuya odaklan">🍅</button>` : ''}
+                </div>
+            </div>
+        `;
+    });
+
+    const doneCount = tasks.filter(t => t.completed).length;
+    const pct = tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0;
+    if (tasks.length > 0) {
+        html += `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+    }
+
+    container.innerHTML = html;
+    setupDragAndDrop(container, type);
+}
+
+function toggleTaskComplete(cb, taskId, type) {
+    const list = appData.days[selectedDay][type];
+    const task = list.find(t => t.id === taskId);
+    if (!task) return;
+    
+    task.completed = cb.checked;
+    task.completedAt = task.completed ? new Date().toISOString() : null;
+    
+    if(task.completed) {
+        addPoints(10);
+        confetti(30);
+    } else {
+        addPoints(-10);
+    }
+
+    saveData();
+    checkBadges(); // Gamification check
+    renderToday(); // re-render
+}
+
+/* --- DRAG & DROP YAPISI (SÜRÜKLE BIRAK) --- */
+let draggedTaskHTML = null;
+let draggedTaskData = null;
+
+function setupDragAndDrop(container, type) {
+    const items = container.querySelectorAll('.task-item');
+    
+    items.forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            this.classList.add('dragging');
+            draggedTaskData = {
+                id: this.dataset.id,
+                type: this.dataset.type,
+                index: parseInt(this.dataset.index)
+            };
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        });
+
+        item.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            container.querySelectorAll('.task-item').forEach(el => el.classList.remove('drag-over'));
+        });
+
+        item.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+
+        item.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const dropIndex = parseInt(this.dataset.index);
+            const dragIndex = draggedTaskData.index;
+
+            if (dragIndex === dropIndex) return;
+
+            // Veriyi dizide yer değiştirme algoritması
+            const list = appData.days[selectedDay][type];
+            const itemToMove = list.splice(dragIndex, 1)[0];
+            list.splice(dropIndex, 0, itemToMove);
+            
+            saveData();
+            renderToday(); // Yeniden çiz
+        });
+    });
+}
+
+/* --- GAMIFICATION (PUAN, YAPRAK & ROZETLER) --- */
+function addPoints(pts) {
+    appData.points = Math.max(0, (appData.points || 0) + pts);
+    updateHeaderStats();
+}
+
+function checkBadges() {
+    let newBadge = null;
+    let earned = appData.badges;
+
+    // 1. İlk Görev "first_blood"
+    if (!earned.includes('first_blood')) {
+        let totalDone = 0;
+        DAYS.forEach(d => {
+            totalDone += appData.days[d.key].tekrar.filter(t=>t.completed).length;
+            totalDone += appData.days[d.key].yeniKonular.filter(t=>t.completed).length;
+        });
+        if (totalDone >= 1) { earned.push('first_blood'); newBadge = 'first_blood'; }
+    }
+
+    // 2. Gece Kuşu "night_owl"
+    if (!earned.includes('night_owl')) {
+        const h = new Date().getHours();
+        if (h >= 23 || h <= 3) { earned.push('night_owl'); newBadge = 'night_owl'; }
+    }
+
+    // 3. Yarı Yol "half_way"
+    if (!earned.includes('half_way')) {
+        let allTasks = 0, doneTasks = 0;
+        DAYS.forEach(d => {
+            const arr = [...appData.days[d.key].tekrar, ...appData.days[d.key].yeniKonular];
+            allTasks += arr.length;
+            doneTasks += arr.filter(t=>t.completed).length;
+        });
+        if (allTasks > 0 && (doneTasks / allTasks >= 0.5)) { earned.push('half_way'); newBadge = 'half_way'; }
+    }
+
+    // Günlük seri hesabı
+    updateStreakData();
+
+    if (!earned.includes('streak_3') && appData.streak.current >= 3) { earned.push('streak_3'); newBadge = 'streak_3'; }
+    if (!earned.includes('streak_7') && appData.streak.current >= 7) { earned.push('streak_7'); newBadge = 'streak_7'; }
+
+    saveData();
+
+    if (newBadge) {
+        playBeep();
+        confetti(100);
+        showToast(`🏆 Yeni Başarı: ${BADGES_DEFS[newBadge].name}`, true);
+        addPoints(50); // Rozet kazanana 50 puan bonus
+    }
+}
+
+function updateStreakData() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const s = appData.streak;
+    
+    // Check if user did any tasks today
+    let didTaskToday = false;
+    DAYS.forEach(d => {
+        const arr = [...appData.days[d.key].tekrar, ...appData.days[d.key].yeniKonular];
+        if (arr.some(t => t.completedAt && t.completedAt.startsWith(todayStr))) {
+            didTaskToday = true;
+        }
+    });
+
+    if (didTaskToday) {
+        if (s.lastDate !== todayStr) {
+            // Check if yesterday
+            let yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+            let yStr = yesterday.toISOString().split('T')[0];
+            
+            if (s.lastDate === yStr) {
+                s.current += 1; // Seri devam ediyor
+            } else {
+                s.current = 1; // Seri kırıldı, baştan
+            }
+            s.lastDate = todayStr;
+            updateHeaderStats();
+        }
+    }
+}
+
+/* --- POMODORO --- */
+function setupPomodoro() {
+    const timeDisplay = document.getElementById('pomoTimeDisplay');
+    const circle = document.getElementById('pomoProgress');
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    
+    circle.style.strokeDasharray = `${circumference} ${circumference}`;
+    circle.style.transition = 'stroke-dashoffset 1s linear';
+
+    function setTime(mins) {
+        pomoTotalTime = mins * 60;
+        pomoTimeRemaining = pomoTotalTime;
+        updateTimerVisuals();
+    }
+
+    function updateTimerVisuals() {
+        const m = Math.floor(pomoTimeRemaining / 60);
+        const s = pomoTimeRemaining % 60;
+        timeDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        document.getElementById('miniTimer').innerHTML = `🍅 <span>${timeDisplay.textContent}</span>`;
+        // Circle calculation
+        const offset = circumference - (pomoTimeRemaining / pomoTotalTime) * circumference;
+        circle.style.strokeDashoffset = offset;
+    }
+
+    document.querySelectorAll('.pomo-mode').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if(pomoIsRunning) return showToast("Zamanlayıcı çalışırken mod değiştiremezsiniz.");
+            document.querySelectorAll('.pomo-mode').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            pomoMode = btn.dataset.mode;
+            setTime(parseInt(btn.dataset.time));
+        });
+    });
+
+    const btnStart = document.getElementById('btnPomoStart');
+    const btnReset = document.getElementById('btnPomoReset');
+
+    btnStart.addEventListener('click', () => {
+        if (pomoIsRunning) {
+            // Durdur
+            clearInterval(pomoInterval);
+            pomoIsRunning = false;
+            btnStart.textContent = "Devam Et";
+            btnStart.classList.remove('running');
+        } else {
+            // Başlat
+            pomoIsRunning = true;
+            btnStart.textContent = "Duraklat";
+            btnStart.classList.add('running');
+            pomoInterval = setInterval(() => {
+                if(pomoTimeRemaining > 0) {
+                    pomoTimeRemaining--;
+                    updateTimerVisuals();
+                } else {
+                    // Pomodoro Bitti!
+                    clearInterval(pomoInterval);
+                    pomoIsRunning = false;
+                    btnStart.textContent = "Başlat";
+                    btnStart.classList.remove('running');
+                    playBeep();
+                    handlePomodoroComplete();
+                }
+            }, 1000);
+        }
+    });
+
+    btnReset.addEventListener('click', () => {
+        clearInterval(pomoInterval);
+        pomoIsRunning = false;
+        btnStart.textContent = "Başlat";
+        btnStart.classList.remove('running');
+        const activeModeTime = parseInt(document.querySelector('.pomo-mode.active').dataset.time);
+        setTime(activeModeTime);
+    });
+
+    renderPomoStats();
+}
+
+function handlePomodoroComplete() {
+    confetti(50);
+    showToast("✨ Süre Doldu! Odaklanma Başarılı.");
+    
+    if (pomoMode === 'work') {
+        appData.pomodoro.totalCompleted++;
+        const mins = parseInt(document.querySelector('.pomo-mode[data-mode="work"]').dataset.time);
+        appData.pomodoro.totalMins += mins;
+        
+        // Puan
+        addPoints(15);
+        
+        // Görevi otomatik tamamlama opsiyonu
+        const select = document.getElementById('pomoTaskSelect');
+        const taskId = select.value;
+        if(taskId) {
+            // Görevi today tabsından bulup bitir
+            const list = [...appData.days[selectedDay].tekrar, ...appData.days[selectedDay].yeniKonular];
+            const task = list.find(t=>t.id === taskId);
+            if(task && !task.completed) {
+                appData.pomodoro.history.push(`${new Date().toLocaleTimeString('tr-TR')} - ${task.subject || ''} (${task.text}) çalışıldı.`);
+                if(confirm(`"${task.text}" konusunu tamamlandı olarak işaretleyelim mi?`)) {
+                    task.completed = true;
+                    task.completedAt = new Date().toISOString();
+                }
+            }
+        } else {
+            appData.pomodoro.history.push(`${new Date().toLocaleTimeString('tr-TR')} - Serbest Pomodoro`);
+        }
+
+        // Gamification Rozet Check (Pomo bazlı)
+        let earned = appData.badges;
+        if(appData.pomodoro.totalCompleted >= 1 && !earned.includes('pomo_starter')) {
+            earned.push('pomo_starter'); showToast(`🏆 Yeni Rozet: Pomodoro Çaylağı!`, true); playBeep();
+        }
+        if(appData.pomodoro.totalCompleted >= 10 && !earned.includes('pomo_master')) {
+            earned.push('pomo_master'); showToast(`🏆 Yeni Rozet: Odak Ustası!`, true); playBeep();
+        }
+
+        saveData();
+        renderPomoStats();
+        renderToday();
+    }
+}
+
+function renderPomoStats() {
+    document.getElementById('pomoCompletedCount').textContent = appData.pomodoro?.totalCompleted || 0;
+    document.getElementById('pomoTotalTime').textContent = appData.pomodoro?.totalMins || 0;
+
+    const histList = document.getElementById('pomoHistoryList');
+    const histArr = appData.pomodoro?.history || [];
+    if(histArr.length > 0) {
+        histList.innerHTML = histArr.slice(-10).reverse().map(log => `<div class="pomo-h-item">${log}</div>`).join('');
+    }
+}
+
+function updatePomoTaskSelect(dayData) {
+    const select = document.getElementById('pomoTaskSelect');
+    select.innerHTML = '<option value="">-- Serbest Çalışma --</option>';
+    
+    const tasks = [...(dayData.tekrar||[]), ...(dayData.yeniKonular||[])].filter(t=>!t.completed);
+    tasks.forEach(t => {
+        const title = t.subject ? `${t.subject} - ${t.text}` : t.text;
+        select.innerHTML += `<option value="${t.id}">${title}</option>`;
+    });
+}
+
+function focusPomo(taskId) {
+    document.getElementById('tabPomodoro').click();
+    const select = document.getElementById('pomoTaskSelect');
+    select.value = taskId;
+    // Otomatik modu çalışmaya al
+    document.querySelector('.pomo-mode[data-mode="work"]').click();
+}
+
+/* --- YARDIMCI GÖRSELLEŞTİRMELER (OVERVIEW) --- */
+function renderWeeklyOverview() {
+    const container = document.getElementById('weeklyOverview');
+    const jsDay = new Date().getDay();
+    const todayObj = DAYS.find(d => d.jsDay === jsDay) || DAYS[0];
+
+    container.innerHTML = DAYS.map(d => {
+        const dd = appData.days[d.key];
+        let total = 0, done = 0;
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            total += (dd[type] || []).length;
+            done += (dd[type] || []).filter(t => t.completed).length;
+        });
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        const isToday = d.key === todayObj.key;
+        const isActive = d.key === selectedDay;
+        
+        let barClass = total===0 ? 'none' : (done===total ? 'all-done' : 'partial');
+
+        return `<div class="week-day-card ${isToday ? 'is-today' : ''} ${isActive ? 'active' : ''}" data-day="${d.key}" onclick="document.querySelector('.day-btn[data-day=\\'${d.key}\\']').click()">
+            <div class="day-name">${d.short}</div>
+            <div class="day-progress ${barClass}">${total > 0 ? done + '/' + total : '–'}</div>
+            <div class="day-bar"><div class="day-bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('');
+}
+
+
+/* --- NOT DEFTERİ MODÜLÜ --- */
+function openNoteModal(taskId, title) {
+    currentNoteTargetId = taskId;
+    document.getElementById('noteModalSubject').textContent = title;
+    document.getElementById('noteModalText').value = appData.notes[taskId] || '';
+    document.getElementById('noteModalOverlay').classList.add('show');
+}
+
+let currentNoteTargetId = null;
+
+function renderNotes() {
+    const container = document.getElementById('notesGrid');
+    const filters = document.getElementById('notesFilters');
+    
+    let allTasksWithNotes = [];
+    const subjects = new Set();
+
+    DAYS.forEach(d => {
+        const dayData = appData.days[d.key];
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            (dayData[type] || []).forEach(t => {
+                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
+                    allTasksWithNotes.push({...t, note: appData.notes[t.id]});
+                    if(t.subject) subjects.add(t.subject);
+                }
+            });
+        });
+    });
+
+    if (allTasksWithNotes.length === 0) {
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><span class="empty-icon">📓</span><p>Henüz alınmış bir ders notu yok. Konuların yanındaki 📝 ikonuna tıklayarak not alabilirsiniz.</p></div>`;
+        filters.style.display = 'none';
+        return;
+    }
+
+    filters.style.display = 'flex';
+    // Update Filter Buttons (Keep "all" but update subjects)
+    filters.innerHTML = `<button class="filter-btn active" data-subject="all" onclick="filterNotes('all', this)">Tümü</button>` + 
+                        Array.from(subjects).map(s => `<button class="filter-btn" data-subject="${s}" onclick="filterNotes('${s}', this)">${s}</button>`).join('');
+
+    renderNotesItems(allTasksWithNotes, container);
+}
+
+function filterNotes(subjPattern, btnEl) {
+    document.querySelectorAll('#notesFilters .filter-btn').forEach(b=>b.classList.remove('active'));
+    btnEl.classList.add('active');
+    
+    let allTasksWithNotes = [];
+    DAYS.forEach(d => {
+        const dayData = appData.days[d.key];
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            (dayData[type] || []).forEach(t => {
+                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
+                    if(subjPattern === 'all' || t.subject === subjPattern) {
+                        allTasksWithNotes.push({...t, note: appData.notes[t.id]});
+                    }
+                }
+            });
+        });
+    });
+    
+    renderNotesItems(allTasksWithNotes, document.getElementById('notesGrid'));
+}
+
+function renderNotesItems(items, container) {
+    container.innerHTML = items.map(t => `
+        <div class="note-card" onclick="openNoteModal('${t.id}', '${escapeHtml(t.subject || t.text)}')">
+            <div class="note-subj">${t.subject ? escapeHtml(t.subject) : 'Genel'}</div>
+            <div class="note-task">${escapeHtml(t.text)}</div>
+            <div class="note-excerpt">${escapeHtml(t.note)}</div>
+        </div>
+    `).join('');
+}
+
+
+/* --- İSTATİSTİK & DASHBOARD --- */
+function renderStats() {
+    // 1. Seriler ve Puanlar
+    document.getElementById('dashStreak').textContent = appData.streak?.current || 0;
+    
+    // 2. Tamamlama Oranı (Donut)
+    let totalItems = 0, totalDone = 0;
+    DAYS.forEach(d => {
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            totalItems += (appData.days[d.key][type] || []).length;
+            totalDone += (appData.days[d.key][type] || []).filter(t=>t.completed).length;
+        });
+    });
+    const pct = totalItems > 0 ? Math.round((totalDone/totalItems)*100) : 0;
+    document.getElementById('dashCompletionText').textContent = pct + '%';
+    document.getElementById('dashCompletionDonut').style.strokeDasharray = `${pct}, 100`;
+
+    // 3. Rozet Önizleme
+    const previewContainer = document.getElementById('badgesPreview');
+    previewContainer.innerHTML = '';
+    
+    const badgeKeys = Object.keys(BADGES_DEFS);
+    // Rastgele veya ilk 4 rozeti göster
+    badgeKeys.slice(0, 4).forEach(bKey => {
+        const isUnlocked = appData.badges.includes(bKey);
+        previewContainer.innerHTML += `<div class="mini-badge ${isUnlocked ? 'unlocked' : ''}" title="${BADGES_DEFS[bKey].name}"> ${BADGES_DEFS[bKey].icon}</div>`;
+    });
+}
+
+function populateFullBadges() {
+    const grid = document.getElementById('fullBadgesGrid');
+    grid.innerHTML = '';
+    Object.keys(BADGES_DEFS).forEach(k => {
+        const b = BADGES_DEFS[k];
+        const isUnlocked = appData.badges.includes(k);
+        grid.innerHTML += `
+            <div class="badge-item ${isUnlocked ? 'unlocked' : ''}">
+                <span class="badge-icon">${b.icon}</span>
+                <div class="badge-name">${b.name}</div>
+                <div class="badge-desc">${b.desc}</div>
+            </div>
+        `;
+    });
+}
+
+/* --- MODALLAR --- */
+function setupModals() {
+    // Note Modal
+    const noteModal = document.getElementById('noteModalOverlay');
+    document.getElementById('btnCloseNote').addEventListener('click', () => noteModal.classList.remove('show'));
+    document.getElementById('btnSaveNote').addEventListener('click', () => {
+        const text = document.getElementById('noteModalText').value;
+        if(text.trim() === '') delete appData.notes[currentNoteTargetId];
+        else appData.notes[currentNoteTargetId] = text;
+        saveData();
+        
+        if(appData.notes[currentNoteTargetId] && !appData.badges.includes('note_taker')) {
+            appData.badges.push('note_taker');
+            showToast("🏆 Yeni Rozet: Kâtip", true); playBeep();
+        }
+        
+        noteModal.classList.remove('show');
+        showToast("Not kaydedildi 📝");
+        renderToday();
+        if(document.querySelector('.tab-btn[data-tab="notes"]').classList.contains('active')) renderNotes();
+    });
+
+    // Badges Modal
+    const badgesModal = document.getElementById('badgesModalOverlay');
+    const openBadges = () => { populateFullBadges(); badgesModal.classList.add('show'); };
+    
+    document.getElementById('btnCloseBadges').addEventListener('click', () => badgesModal.classList.remove('show'));
+    document.getElementById('headerStreakBadge').addEventListener('click', openBadges);
+    document.getElementById('headerPointsBadge').addEventListener('click', openBadges);
+    document.getElementById('btnShowAllBadges').addEventListener('click', openBadges);
+}
+
+
+/* --- YEDEKLEME VE AYARLAR --- */
+function setupSettings() {
+    const inputGoal = document.getElementById('settingGoalPct');
+    inputGoal.value = appData.settings.goalPct || 80;
+
+    document.getElementById('btnSaveGoal').addEventListener('click', () => {
+        const val = parseInt(inputGoal.value);
+        if(val >= 1 && val <= 100) {
+            appData.settings.goalPct = val;
+            saveData();
+            showToast("Hedef güncellendi.");
+            renderToday(); // update UI Goal display
+        }
+    });
+
+    document.getElementById('btnExportData').addEventListener('click', () => {
+        const dataStr = JSON.stringify(appData, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kpss_takip_yedek_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsed = JSON.parse(event.target.result);
+                if(parsed && parsed.days) {
+                    appData = parsed;
+                    saveData();
+                    showToast("Yedek başarıyla geri yüklendi! Sayfa yenileniyor...");
+                    setTimeout(() => location.reload(), 1500);
+                } else { alert("Geçersiz yedek dosyası!"); }
+            } catch(err) { alert("Dosya okuma hatası!"); }
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('btnHardReset').addEventListener('click', () => {
+        if(confirm("DİKKAT! Tüm verileriniz kalıcı olarak silinecek. Emin misiniz?")) {
+            if(confirm("Son Kararın mı? (İstersen önce üstten yedeğini al)")) {
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(HISTORY_KEY);
+                location.reload();
+            }
+        }
+    });
+}
+
+/* --- BASİT CONFETTİ ANİMASYONU --- */
+function confetti(amount = 50) {
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const colors = ['#f85149', '#3fb950', '#58a6ff', '#bc8cff', '#fbbf24'];
+
+    for(let i=0; i<amount; i++) {
+        particles.push({
+            x: canvas.width / 2, y: canvas.height / 2 + 100,
+            r: Math.random() * 6 + 2,
+            dx: Math.random() * 10 - 5,
+            dy: Math.random() * -10 - 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            tilt: Math.random() * 10
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        let active = false;
+        particles.forEach(p => {
+            if(p.y < canvas.height) active = true;
+            ctx.beginPath();
+            ctx.lineWidth = p.r;
+            ctx.strokeStyle = p.color;
+            ctx.moveTo(p.x + p.tilt + p.r, p.y);
+            ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+            ctx.stroke();
+            p.x += p.dx; p.y += p.dy; p.dy += 0.2; // gravity
+            p.tilt += 0.1; // spin
+        });
+        if(active) requestAnimationFrame(draw);
+        else ctx.clearRect(0,0, canvas.width, canvas.height);
+    }
+    draw();
+}
+
+/* --- HAFTALIK PROGRAM GİRİŞİ (MEVCUT MANTIK) --- */
 function getCurrentWeekLabel() {
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -122,31 +868,53 @@ function getCurrentWeekLabel() {
     return `${now.getFullYear()}-H${weekNumber}`;
 }
 
-function getWeekDateRange() {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + mondayOffset);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const fmt = d => `${d.getDate()} ${d.toLocaleDateString('tr-TR', { month: 'short' })}`;
-    return `${fmt(monday)} – ${fmt(sunday)}`;
+function buildWeeklyForm() {
+    let tekrarLines = [], yeniLines = [];
+    DAYS.forEach(day => {
+        const tItems = appData.days[day.key].tekrar || [];
+        const yItems = appData.days[day.key].yeniKonular || [];
+        
+        if(tItems.length > 0) {
+            tekrarLines.push(day.label);
+            let s = null;
+            tItems.forEach(i => {
+                if(i.subject && i.subject !== s) { s=i.subject; tekrarLines.push(s); }
+                tekrarLines.push('-' + i.text);
+            });
+            tekrarLines.push('');
+        }
+        
+        if(yItems.length > 0) {
+            yeniLines.push(day.label);
+            let s = null;
+            yItems.forEach(i => {
+                if(i.subject && i.subject !== s) { s=i.subject; yeniLines.push(s); }
+                yeniLines.push('-' + i.text);
+            });
+            yeniLines.push('');
+        }
+    });
+
+    const tekrarEl = document.getElementById('inputBulkTekrar');
+    const yeniEl = document.getElementById('inputBulkYeni');
+
+    const tekrarFromData = tekrarLines.join('\n').trim();
+    const yeniFromData = yeniLines.join('\n').trim();
+
+    try {
+        const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+        tekrarEl.value = tekrarFromData || drafts.tekrar || '';
+        yeniEl.value = yeniFromData || drafts.yeni || '';
+    } catch {
+        tekrarEl.value = tekrarFromData;
+        yeniEl.value = yeniFromData;
+    }
 }
 
-// ===== DRAFT AUTO-SAVE =====
 function setupAutoSaveDrafts() {
     const yeniEl = document.getElementById('inputBulkYeni');
     const tekrarEl = document.getElementById('inputBulkTekrar');
     
-    // Restore drafts
-    try {
-        const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-        if (drafts.yeni && yeniEl && !yeniEl.value.trim()) yeniEl.value = drafts.yeni;
-        if (drafts.tekrar && tekrarEl && !tekrarEl.value.trim()) tekrarEl.value = drafts.tekrar;
-    } catch {}
-
-    // Auto-save as user types (debounced)
     let saveTimeout = null;
     const autoSave = () => {
         clearTimeout(saveTimeout);
@@ -163,609 +931,87 @@ function setupAutoSaveDrafts() {
     if (tekrarEl) tekrarEl.addEventListener('input', autoSave);
 }
 
-// ===== HISTORY =====
-function loadHistory() {
-    try {
-        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    } catch {
-        return [];
-    }
-}
-
-function saveHistory(history) {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-}
-
-function archiveCurrentWeek() {
-    // Calculate stats
-    let totalTasks = 0, completedTasks = 0;
-    const daySummaries = {};
-    
-    DAYS.forEach(d => {
-        const dd = appData.days[d.key];
-        let dayTotal = 0, dayDone = 0;
-        const subjects = new Set();
-        
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            const items = dd[type] || [];
-            dayTotal += items.length;
-            dayDone += items.filter(t => t.completed).length;
-            items.forEach(t => { if (t.subject) subjects.add(t.subject); });
-        });
-        
-        totalTasks += dayTotal;
-        completedTasks += dayDone;
-        
-        if (dayTotal > 0) {
-            daySummaries[d.key] = {
-                label: d.label,
-                total: dayTotal,
-                completed: dayDone,
-                subjects: [...subjects]
-            };
-        }
-    });
-
-    if (totalTasks === 0) return; // Nothing to archive
-
-    const entry = {
-        id: genId(),
-        weekLabel: appData.weekLabel || getCurrentWeekLabel(),
-        dateRange: getWeekDateRange(),
-        archivedAt: new Date().toISOString(),
-        totalTasks,
-        completedTasks,
-        percentage: Math.round((completedTasks / totalTasks) * 100),
-        daySummaries
-    };
-
-    const history = loadHistory();
-    history.unshift(entry);
-    // Keep last 52 weeks max
-    if (history.length > 52) history.pop();
-    saveHistory(history);
-}
-
-function renderHistory() {
-    const container = document.getElementById('historyContent');
-    if (!container) return;
-
-    const history = loadHistory();
-
-    if (history.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">📊</span>
-                <p>Henüz geçmiş hafta kaydı yok</p>
-                <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 8px;">
-                    "Yeni Hafta" butonuna bastığında mevcut hafta otomatik arşivlenir.
-                </p>
-            </div>`;
-        return;
-    }
-
-    // Summary stats
-    const totalWeeks = history.length;
-    const avgProgress = Math.round(history.reduce((sum, h) => sum + h.percentage, 0) / totalWeeks);
-    const totalCompleted = history.reduce((sum, h) => sum + h.completedTasks, 0);
-
-    let html = `
-        <div class="history-stats">
-            <div class="history-stat-card">
-                <span class="history-stat-number">${totalWeeks}</span>
-                <span class="history-stat-label">Hafta</span>
-            </div>
-            <div class="history-stat-card">
-                <span class="history-stat-number">${avgProgress}%</span>
-                <span class="history-stat-label">Ort. İlerleme</span>
-            </div>
-            <div class="history-stat-card">
-                <span class="history-stat-number">${totalCompleted}</span>
-                <span class="history-stat-label">Toplam Konu</span>
-            </div>
-        </div>
-
-        <div class="history-chart">
-            <div class="chart-title">📈 Haftalık İlerleme Grafiği</div>
-            <div class="chart-bars">
-                ${history.slice().reverse().map(h => `
-                    <div class="chart-bar-wrapper" title="${h.weekLabel}: %${h.percentage}">
-                        <div class="chart-bar" style="height: ${Math.max(h.percentage, 4)}%">
-                            <span class="chart-bar-value">${h.percentage}%</span>
-                        </div>
-                        <span class="chart-bar-label">${h.weekLabel.split('-')[1] || h.weekLabel}</span>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-
-        <div class="history-list">
-    `;
-
-    history.forEach(entry => {
-        const pctClass = entry.percentage >= 80 ? 'excellent' : entry.percentage >= 50 ? 'good' : 'low';
-        const dayCards = DAYS
-            .filter(d => entry.daySummaries[d.key])
-            .map(d => {
-                const ds = entry.daySummaries[d.key];
-                const dsPercent = ds.total > 0 ? Math.round((ds.completed / ds.total) * 100) : 0;
-                return `
-                    <div class="history-day-mini">
-                        <span class="history-day-name">${d.short}</span>
-                        <div class="history-day-bar">
-                            <div class="history-day-bar-fill" style="width:${dsPercent}%"></div>
-                        </div>
-                        <span class="history-day-stat">${ds.completed}/${ds.total}</span>
-                    </div>
-                `;
-            }).join('');
-
-        html += `
-            <div class="history-card">
-                <div class="history-card-header">
-                    <div class="history-card-left">
-                        <div class="history-week-label">${entry.weekLabel}</div>
-                        <div class="history-date-range">${entry.dateRange}</div>
-                    </div>
-                    <div class="history-card-right">
-                        <div class="history-pct ${pctClass}">${entry.percentage}%</div>
-                        <div class="history-task-count">${entry.completedTasks}/${entry.totalTasks} konu</div>
-                    </div>
-                </div>
-                <div class="history-card-body">
-                    ${dayCards}
-                </div>
-                <div class="history-progress-bar">
-                    <div class="history-progress-fill ${pctClass}" style="width:${entry.percentage}%"></div>
-                </div>
-            </div>
-        `;
-    });
-
-    html += '</div>';
-    container.innerHTML = html;
-}
-
-// ===== HEADER =====
-function setHeaderDate() {
-    const now = new Date();
-    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    document.getElementById('headerDate').textContent = now.toLocaleDateString('tr-TR', opts);
-}
-
-function setCountdown() {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const diff = EXAM_DATE - today;
-    const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    document.getElementById('countdownNumber').textContent = daysLeft;
-}
-
-function updateStats() {
-    const dayData = appData.days[selectedDay];
-    if (!dayData) return;
-    const countItems = list => (list || []).filter(t => !t.completed).length;
-    const countDone = list => (list || []).filter(t => t.completed).length;
-    const remaining = countItems(dayData.tekrar) + countItems(dayData.yeniKonular);
-    const done = countDone(dayData.tekrar) + countDone(dayData.yeniKonular);
-    document.querySelector('#statToday .stat-number').textContent = remaining;
-    document.querySelector('#statDone .stat-number').textContent = done;
-    
-    let totalAll = 0, totalDone = 0;
-    DAYS.forEach(d => {
-        const dd = appData.days[d.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            totalAll += (dd[type] || []).length;
-            totalDone += (dd[type] || []).filter(t => t.completed).length;
-        });
-    });
-    const pct = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
-    document.querySelector('#statStreak .stat-number').textContent = pct + '%';
-}
-
-// ===== TABS =====
-function setupTabs() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            const panel = document.getElementById('panel' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1));
-            if (panel) { void panel.offsetWidth; panel.classList.add('active'); }
-        });
-    });
-}
-
-// ===== DAY SELECTOR =====
-function setupDaySelector() {
-    const jsDay = new Date().getDay();
-    const todayObj = DAYS.find(d => d.jsDay === jsDay) || DAYS[0];
-    selectedDay = todayObj.key;
-
-    document.querySelectorAll('.day-btn').forEach(btn => {
-        const dayKey = btn.dataset.day;
-        const dayObj = DAYS.find(d => d.key === dayKey);
-        if (dayObj && dayObj.jsDay === jsDay) btn.classList.add('today');
-        if (dayKey === selectedDay) btn.classList.add('active');
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            selectedDay = dayKey;
-            renderToday();
-        });
-    });
-}
-
-// ===== RENDER TODAY =====
-function renderToday() {
-    const dayData = appData.days[selectedDay];
-    if (!dayData) return;
-
-    renderTaskList('lessonsList', dayData.yeniKonular, 'yeniKonular');
-    renderTaskList('reviewList', dayData.tekrar, 'tekrar');
-
-    const count = list => (list || []).filter(t => !t.completed).length;
-    document.getElementById('lessonsCount').textContent = count(dayData.yeniKonular);
-    document.getElementById('reviewCount').textContent = count(dayData.tekrar);
-    updateStats();
-    renderWeeklyOverview();
-}
-
-function renderTaskList(containerId, tasks, type) {
-    const container = document.getElementById(containerId);
-    const pending = (tasks || []).filter(t => !t.completed);
-
-    if (pending.length === 0) {
-        container.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span><p>${type === 'tekrar' ? 'Tekrar programı yok' : 'Yeni konu yok'}</p></div>`;
-        return;
-    }
-
-    let html = '';
-    let currentSubject = null;
-
-    pending.forEach(task => {
-        if (task.subject && task.subject !== currentSubject) {
-            currentSubject = task.subject;
-            html += `<div class="subject-header">${escapeHtml(currentSubject)}</div>`;
-        }
-        html += `
-            <div class="task-item" data-id="${task.id}" data-type="${type}">
-                <label class="task-checkbox">
-                    <input type="checkbox">
-                    <span class="checkmark"></span>
-                </label>
-                <span class="task-text">${escapeHtml(task.text)}</span>
-            </div>
-        `;
-    });
-
-    const all = tasks || [];
-    const doneCount = all.filter(t => t.completed).length;
-    const pct = all.length > 0 ? Math.round((doneCount / all.length) * 100) : 0;
-    if (all.length > 0) {
-        html += `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
-    }
-
-    container.innerHTML = html;
-
-    container.querySelectorAll('.task-item').forEach(item => {
-        item.querySelector('input[type="checkbox"]').addEventListener('change', () => {
-            handleComplete(item, item.dataset.id, item.dataset.type);
-        });
-    });
-}
-
-function handleComplete(el, taskId, type) {
-    const list = appData.days[selectedDay][type];
-    const task = list.find(t => t.id === taskId);
-    if (!task) return;
-    task.completed = true;
-    task.completedAt = new Date().toISOString();
-    saveData();
-    el.classList.add('completing');
-    showToast('Konu tamamlandı! ✨');
-    setTimeout(() => { renderToday(); renderDone(); }, 450);
-}
-
-// ===== WEEKLY FORM =====
-function buildWeeklyForm() {
-    const tekrarEl = document.getElementById('inputBulkTekrar');
-    const yeniEl = document.getElementById('inputBulkYeni');
-    
-    // First try to load from saved program data, then check drafts
-    const tekrarFromData = reconstructBulk('tekrar');
-    const yeniFromData = reconstructBulk('yeniKonular');
-    
-    try {
-        const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-        // Use program data if available, otherwise use drafts
-        if (tekrarEl) tekrarEl.value = tekrarFromData || drafts.tekrar || '';
-        if (yeniEl) yeniEl.value = yeniFromData || drafts.yeni || '';
-    } catch {
-        if (tekrarEl) tekrarEl.value = tekrarFromData;
-        if (yeniEl) yeniEl.value = yeniFromData;
-    }
-}
-
-function reconstructBulk(type) {
-    let lines = [];
-    DAYS.forEach(day => {
-        const items = appData.days[day.key][type] || [];
-        if (items.length === 0) return;
-        lines.push(day.label);
-        let lastSubject = null;
-        items.forEach(t => {
-            if (t.subject && t.subject !== lastSubject) {
-                lastSubject = t.subject;
-                lines.push(t.subject);
-            }
-            lines.push('-' + t.text);
-        });
-        lines.push('');
-    });
-    return lines.join('\n').trim();
-}
-
-// ===== FORM ACTIONS =====
 function setupFormActions() {
-    document.getElementById('btnSave').addEventListener('click', saveProgram);
-    document.getElementById('btnClear').addEventListener('click', clearAll);
-    document.getElementById('btnResetWeek').addEventListener('click', resetWeek);
-}
+    document.getElementById('btnSave').addEventListener('click', () => {
+        const tekrarText = document.getElementById('inputBulkTekrar').value;
+        const yeniText = document.getElementById('inputBulkYeni').value;
 
-function saveProgram() {
-    const tekrarText = document.getElementById('inputBulkTekrar').value;
-    const yeniText = document.getElementById('inputBulkYeni').value;
+        const tekrarByDay = parseBulkText(tekrarText);
+        const yeniByDay = parseBulkText(yeniText);
 
-    const tekrarByDay = parseBulkText(tekrarText);
-    const yeniByDay = parseBulkText(yeniText);
+        DAYS.forEach(day => {
+            const oldT = appData.days[day.key].tekrar || [];
+            const oldY = appData.days[day.key].yeniKonular || [];
+            appData.days[day.key].tekrar = mapToTasks(tekrarByDay[day.key] || [], oldT);
+            appData.days[day.key].yeniKonular = mapToTasks(yeniByDay[day.key] || [], oldY);
+        });
 
-    DAYS.forEach(day => {
-        const oldT = appData.days[day.key].tekrar || [];
-        const oldY = appData.days[day.key].yeniKonular || [];
-        appData.days[day.key].tekrar = mapToTasks(tekrarByDay[day.key] || [], oldT);
-        appData.days[day.key].yeniKonular = mapToTasks(yeniByDay[day.key] || [], oldY);
+        saveData();
+        renderToday();
+        showToast('Program başarıyla kaydedildi! 🎉');
+        document.getElementById('tabToday').click();
     });
 
-    appData.weekLabel = getCurrentWeekLabel();
-    saveData();
-    
-    // Clear drafts since we saved
-    localStorage.removeItem(DRAFT_KEY);
-    
-    renderToday();
-    renderDone();
-    showToast('Haftalık program kaydedildi! 🎉');
-    document.querySelector('[data-tab="today"]').click();
+    document.getElementById('btnClear').addEventListener('click', () => {
+        if(confirm('Mevcut haftanın TÜM programını silmek istediğine emin misin?')) {
+            document.getElementById('inputBulkTekrar').value = '';
+            document.getElementById('inputBulkYeni').value = '';
+            DAYS.forEach(d => { appData.days[d.key] = { tekrar: [], yeniKonular: [] }; });
+            saveData();
+            renderToday();
+        }
+    });
+
+    document.getElementById('btnResetWeek').addEventListener('click', () => {
+        if (!confirm('Yeni haftaya geçilecek:\n\n✅ Mevcut hafta arşivlenecek\n🔄 Tamamlanan konular sıfırlanacak\n📋 Program yapısı korunacak\n\nDevam?')) return;
+        
+        // Reset completions
+        DAYS.forEach(d => {
+            const dd = appData.days[d.key];
+            ['tekrar', 'yeniKonular'].forEach(type => {
+                (dd[type] || []).forEach(t => { t.completed = false; t.completedAt = null; });
+            });
+        });
+        
+        appData.weekLabel = getCurrentWeekLabel();
+        saveData();
+        renderToday();
+        showToast('Yeni hafta başlatıldı! Başarılar 🚀');
+    });
 }
 
-// ===== PARSER =====
+function detectDayHeader(rawLine) {
+    const trimmed = rawLine.trim().toLowerCase();
+    for (const d of DAYS) {
+        if (d.key === trimmed || d.label.toLowerCase() === trimmed || d.short.toLowerCase() === trimmed) return d.key;
+    }
+    return null;
+}
+
 function parseBulkText(text) {
-    const result = {};
-    DAYS.forEach(d => { result[d.key] = []; });
+    const result = {}; DAYS.forEach(d => { result[d.key] = []; });
     if (!text || !text.trim()) return result;
 
     const lines = text.split('\n');
-    let currentDay = null;
-    let currentSubject = null;
-    let subjectHasTopics = false;
-
-    function flushPendingSubject() {
-        if (currentDay && currentSubject && !subjectHasTopics) {
-            const cleanText = currentSubject.replace(/^[-*•]\s*/, '').trim();
-            if (cleanText) {
-                result[currentDay].push({ subject: null, text: cleanText });
-            }
-        }
-    }
+    let currentDay = null, currentSubject = null;
 
     for (const rawLine of lines) {
         const trimmed = rawLine.trim();
         if (!trimmed) continue;
-
         const detectedDay = detectDayHeader(trimmed);
-        if (detectedDay) {
-            flushPendingSubject();
-            currentDay = detectedDay;
-            currentSubject = null;
-            subjectHasTopics = false;
-            continue;
-        }
-
+        if (detectedDay) { currentDay = detectedDay; currentSubject = null; continue; }
         if (!currentDay) continue;
 
         const topicMatch = trimmed.match(/^[-*•]\s*(.*)/);
-        if (topicMatch) {
-            const topicText = topicMatch[1].trim();
-            if (topicText) {
-                subjectHasTopics = true;
-                result[currentDay].push({ subject: currentSubject, text: topicText });
-            }
-        } else {
-            flushPendingSubject();
-            currentSubject = trimmed;
-            subjectHasTopics = false;
-        }
+        if (topicMatch) { result[currentDay].push({ subject: currentSubject, text: topicMatch[1].trim() }); } 
+        else { currentSubject = trimmed; }
     }
-
-    flushPendingSubject();
     return result;
 }
 
 function mapToTasks(parsed, oldItems) {
-    if (!parsed || parsed.length === 0) return [];
     return parsed.map(p => {
-        const existing = oldItems.find(item => item.text === p.text && item.subject === p.subject);
-        if (existing) return existing;
-        return {
-            id: genId(),
-            text: p.text,
-            subject: p.subject || null,
-            completed: false,
-            completedAt: null
-        };
-    });
-}
-
-function clearAll() {
-    if (!confirm('Tüm programı silmek istediğinize emin misiniz?')) return;
-    appData = { days: {}, weekLabel: getCurrentWeekLabel() };
-    DAYS.forEach(d => { appData.days[d.key] = { tekrar: [], yeniKonular: [] }; });
-    saveData();
-    localStorage.removeItem(DRAFT_KEY);
-    buildWeeklyForm();
-    renderToday();
-    renderDone();
-    showToast('Program temizlendi');
-}
-
-function resetWeek() {
-    if (!confirm('Yeni haftaya geçilecek:\n\n✅ Mevcut hafta arşivlenecek\n🔄 Tamamlanan konular sıfırlanacak\n📋 Program yapısı korunacak\n\nDevam?')) return;
-    
-    // Archive current week first
-    archiveCurrentWeek();
-    
-    // Reset completions
-    DAYS.forEach(d => {
-        const dd = appData.days[d.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            (dd[type] || []).forEach(t => {
-                t.completed = false;
-                t.completedAt = null;
-            });
-        });
-    });
-    
-    appData.weekLabel = getCurrentWeekLabel();
-    saveData();
-    renderToday();
-    renderDone();
-    renderHistory();
-    showToast('Yeni hafta başlatıldı! Geçmiş arşivlendi 🚀');
-}
-
-// ===== DONE =====
-function renderDone() {
-    const container = document.getElementById('doneContent');
-    let allDone = [];
-
-    DAYS.forEach(day => {
-        const dd = appData.days[day.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            (dd[type] || []).forEach(t => {
-                if (t.completed) {
-                    allDone.push({ ...t, dayKey: day.key, dayLabel: day.label, type });
-                }
-            });
-        });
-    });
-
-    if (allDone.length === 0) {
-        container.innerHTML = '<div class="empty-state"><span class="empty-icon">🏆</span><p>Henüz tamamlanan konu yok</p></div>';
-        return;
-    }
-
-    const grouped = {};
-    allDone.forEach(item => {
-        if (!grouped[item.dayKey]) grouped[item.dayKey] = { label: item.dayLabel, items: [] };
-        grouped[item.dayKey].items.push(item);
-    });
-
-    let html = '<div class="done-grid">';
-    html += DAYS.filter(d => grouped[d.key]).map(d => {
-        const g = grouped[d.key];
-        return `<div class="done-day-card">
-            <div class="done-day-title">📅 ${g.label} <span class="done-day-count">${g.items.length}</span></div>
-            <div class="done-day-items">
-                ${g.items.map(item => `
-                    <div class="done-item">
-                        <div class="done-item-top">
-                            <span class="done-badge ${item.type === 'tekrar' ? 'review' : 'lessons'}">${item.type === 'tekrar' ? 'Tekrar' : 'Yeni'}</span>
-                            ${item.subject ? `<span class="done-subject">${escapeHtml(item.subject)}</span>` : ''}
-                        </div>
-                        <div class="done-item-bottom">
-                            <span class="done-text">${escapeHtml(item.text)}</span>
-                            <div class="done-item-actions">
-                                <span class="done-time">${fmtTime(item.completedAt)}</span>
-                                <button class="done-undo-btn" onclick="undoTask('${item.dayKey}','${item.type}','${item.id}')">Geri Al</button>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>`;
-    }).join('');
-    html += '</div>';
-    container.innerHTML = html;
-}
-
-function undoTask(dayKey, type, taskId) {
-    const list = appData.days[dayKey][type];
-    const task = list.find(t => t.id === taskId);
-    if (!task) return;
-    task.completed = false;
-    task.completedAt = null;
-    saveData();
-    renderToday();
-    renderDone();
-    showToast('Konu geri alındı');
-}
-
-// ===== UTILS =====
-function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function fmtTime(iso) { if (!iso) return ''; return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    document.getElementById('toastText').textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-// ===== WEEKLY OVERVIEW =====
-function renderWeeklyOverview() {
-    const container = document.getElementById('weeklyOverview');
-    const jsDay = new Date().getDay();
-    const todayObj = DAYS.find(d => d.jsDay === jsDay) || DAYS[0];
-
-    const hasAnyTasks = DAYS.some(d => {
-        const dd = appData.days[d.key];
-        return (dd.tekrar || []).length > 0 || (dd.yeniKonular || []).length > 0;
-    });
-
-    if (!hasAnyTasks) {
-        container.innerHTML = '';
-        return;
-    }
-
-    container.innerHTML = DAYS.map(d => {
-        const dd = appData.days[d.key];
-        let total = 0, done = 0;
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            total += (dd[type] || []).length;
-            done += (dd[type] || []).filter(t => t.completed).length;
-        });
-        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-        const isToday = d.key === todayObj.key;
-        const isActive = d.key === selectedDay;
-        let progressClass = 'none';
-        if (total > 0 && done === total) progressClass = 'all-done';
-        else if (done > 0) progressClass = 'partial';
-
-        return `<div class="week-day-card ${isToday ? 'is-today' : ''} ${isActive ? 'active' : ''}" data-overview-day="${d.key}">
-            <div class="day-name">${d.short}</div>
-            <div class="day-progress ${progressClass}">${total > 0 ? (pct === 100 ? '✓' : done + '/' + total) : '–'}</div>
-            <div class="day-bar"><div class="day-bar-fill" style="width:${pct}%"></div></div>
-        </div>`;
-    }).join('');
-
-    container.querySelectorAll('.week-day-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const dayKey = card.dataset.overviewDay;
-            selectedDay = dayKey;
-            document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
-            const dayBtn = document.querySelector(`.day-btn[data-day="${dayKey}"]`);
-            if (dayBtn) dayBtn.classList.add('active');
-            renderToday();
-        });
+        const exist = oldItems.find(item => item.text === p.text && item.subject === p.subject);
+        return exist || { id: genId(), text: p.text, subject: p.subject || null, completed: false, completedAt: null };
     });
 }
