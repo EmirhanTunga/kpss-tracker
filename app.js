@@ -1421,19 +1421,19 @@ function renderExams() {
                         </div>
                     </div>
                     
-                    ${exam.scores ? `
+                    ${exam.scores && exam.scores.y2024 !== undefined ? `
                     <div class="exam-scores-pill-group">
                         <div class="score-pill current">
                             <span class="score-year">2024 Puan:</span>
-                            <span class="score-val">${exam.scores.y2024.toFixed(3)}</span>
+                            <span class="score-val">${(exam.scores.y2024 || 0).toFixed(3)}</span>
                         </div>
                         <div class="score-pill">
                             <span class="score-year">2022 Puan:</span>
-                            <span class="score-val">${exam.scores.y2022.toFixed(3)}</span>
+                            <span class="score-val">${(exam.scores.y2022 || 0).toFixed(3)}</span>
                         </div>
                         <div class="score-pill">
                             <span class="score-year">2020 Puan:</span>
-                            <span class="score-val">${exam.scores.y2020.toFixed(3)}</span>
+                            <span class="score-val">${(exam.scores.y2020 || 0).toFixed(3)}</span>
                         </div>
                     </div>
                     ` : ''}
