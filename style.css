@@ -648,101 +648,69 @@ body::before {
 .task-item {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 12px 14px 12px 10px;
+    gap: 16px;
+    padding: 14px 16px 14px 12px;
     margin-bottom: 8px;
-    border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     transition: var(--transition);
     position: relative;
-}
-
-.task-item[draggable="true"] {
-    cursor: grab;
-}
-
-.task-item[draggable="true"]:active {
-    cursor: grabbing;
-    background: rgba(88, 166, 255, 0.05);
 }
 
 .task-item:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
     border-color: var(--border-focus);
     transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.task-item.dragging {
-    opacity: 0.5;
-    border: 2px dashed var(--accent-blue);
-    background: rgba(88, 166, 255, 0.05);
-}
-
-.task-item.drag-over {
-    border-top: 2px solid var(--accent-orange);
-    transform: translateY(2px);
-    margin-top: 10px;
-}
-
-/* Custom Checkbox */
-.task-checkbox {
-    position: relative;
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-}
-
-.task-checkbox input {
-    position: absolute;
-    opacity: 0;
-    width: 100%;
-    height: 100%;
+.task-check-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid var(--border-subtle);
+    color: transparent;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     cursor: pointer;
-    z-index: 2;
-}
-
-.task-checkbox .checkmark {
-    position: absolute;
-    inset: 0;
-    border: 2px solid var(--text-muted);
-    border-radius: 6px;
-    transition: var(--transition);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.2);
+    font-size: 1.2rem;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    flex-shrink: 0;
+    padding: 0;
+    outline: none;
 }
 
-.task-checkbox:hover .checkmark {
+.task-check-btn:hover {
     border-color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
 }
 
-.task-checkbox .checkmark::after {
-    content: '✓';
-    font-size: 14px;
-    font-weight: 900;
-    color: white;
+.task-check-btn .check-icon {
     opacity: 0;
-    transform: scale(0);
-    transition: var(--transition);
+    transform: scale(0.5);
+    transition: all 0.2s ease-out;
 }
 
-.lessons-card .task-checkbox input:checked+.checkmark {
-    background: var(--gradient-green);
-    border-color: transparent;
-    box-shadow: 0 0 8px rgba(63, 185, 80, 0.3);
-}
-
-.review-card .task-checkbox input:checked+.checkmark {
-    background: var(--gradient-blue);
-    border-color: transparent;
-    box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
-}
-
-.task-checkbox input:checked+.checkmark::after {
+.task-check-btn.checked .check-icon {
     opacity: 1;
     transform: scale(1);
+    color: white;
+}
+
+.lessons-card .task-check-btn.checked {
+    background: var(--gradient-green);
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(63, 185, 80, 0.3);
+}
+
+.review-card .task-check-btn.checked {
+    background: var(--gradient-blue);
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
 }
 
 .task-text {

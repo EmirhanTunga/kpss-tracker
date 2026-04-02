@@ -385,20 +385,15 @@ function renderTaskList(containerId, tasks, type) {
             html += `<div class="subject-header">${escapeHtml(currentSubject)}</div>`;
         }
 
-        const hasNote = appData.notes[task.id] && appData.notes[task.id].trim() !== '';
-
-        let checkedAttr = task.completed ? 'checked' : '';
-        let opacityStyle = task.completed ? 'opacity: 0.5; filter: grayscale(1);' : '';
+        let opacityStyle = task.completed ? 'opacity: 0.6; filter: grayscale(0.5);' : '';
 
         html += `
-            <div class="task-item" draggable="true" data-id="${task.id}" data-type="${type}" data-index="${index}" style="${opacityStyle}">
-                <label class="task-checkbox">
-                    <input type="checkbox" ${checkedAttr} onchange="toggleTaskComplete(this, '${task.id}', '${type}')">
-                    <span class="checkmark"></span>
-                </label>
-                <span class="task-text" style="${task.completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(task.text)}</span>
+            <div class="task-item" data-id="${task.id}" data-type="${type}" data-index="${index}" style="${opacityStyle}">
+                <button class="task-check-btn ${task.completed ? 'checked' : ''}" onclick="toggleTaskComplete('${task.id}', '${type}', ${!task.completed})">
+                    <span class="check-icon">✓</span>
+                </button>
+                <span class="task-text" onclick="toggleTaskComplete('${task.id}', '${type}', ${!task.completed})" style="cursor:pointer; flex: 1; ${task.completed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(task.text)}</span>
                 <div class="task-actions">
-                    <button class="task-action-btn ${hasNote ? 'has-note' : ''}" onclick="openNoteModal('${task.id}', '${escapeHtml(task.subject || task.text)}')" title="Not Ekle/Düzenle">📝</button>
                     ${!task.completed ? `<button class="task-action-btn" onclick="focusPomo('${task.id}')" title="Bu konuya odaklan">🍅</button>` : ''}
                 </div>
             </div>
@@ -412,15 +407,14 @@ function renderTaskList(containerId, tasks, type) {
     }
 
     container.innerHTML = html;
-    setupDragAndDrop(container, type);
 }
 
-function toggleTaskComplete(cb, taskId, type) {
+function toggleTaskComplete(taskId, type, isComplete) {
     const list = appData.days[selectedDay][type];
     const task = list.find(t => t.id === taskId);
     if (!task) return;
 
-    task.completed = cb.checked;
+    task.completed = isComplete;
     task.completedAt = task.completed ? new Date().toISOString() : null;
 
     if (task.completed) {
@@ -452,58 +446,7 @@ function checkDailyGoalCompletion() {
     }
 }
 
-/* --- DRAG & DROP YAPISI (SÜRÜKLE BIRAK) --- */
-let draggedTaskHTML = null;
-let draggedTaskData = null;
 
-function setupDragAndDrop(container, type) {
-    const items = container.querySelectorAll('.task-item');
-
-    items.forEach(item => {
-        item.addEventListener('dragstart', function (e) {
-            this.classList.add('dragging');
-            draggedTaskData = {
-                id: this.dataset.id,
-                type: this.dataset.type,
-                index: parseInt(this.dataset.index)
-            };
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.innerHTML);
-        });
-
-        item.addEventListener('dragend', function () {
-            this.classList.remove('dragging');
-            container.querySelectorAll('.task-item').forEach(el => el.classList.remove('drag-over'));
-        });
-
-        item.addEventListener('dragover', function (e) {
-            e.preventDefault();
-            this.classList.add('drag-over');
-        });
-
-        item.addEventListener('dragleave', function () {
-            this.classList.remove('drag-over');
-        });
-
-        item.addEventListener('drop', function (e) {
-            e.preventDefault();
-            this.classList.remove('drag-over');
-
-            const dropIndex = parseInt(this.dataset.index);
-            const dragIndex = draggedTaskData.index;
-
-            if (dragIndex === dropIndex) return;
-
-            // Veriyi dizide yer değiştirme algoritması
-            const list = appData.days[selectedDay][type];
-            const itemToMove = list.splice(dragIndex, 1)[0];
-            list.splice(dropIndex, 0, itemToMove);
-
-            saveData();
-            renderToday(); // Yeniden çiz
-        });
-    });
-}
 
 /* --- GAMIFICATION (PUAN, YAPRAK & ROZETLER) --- */
 function addPoints(pts) {
