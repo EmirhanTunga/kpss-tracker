@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupExams();
     setupNotifications();
     registerServiceWorker();
-    
+
     // Initial Renders
     renderToday();
     renderNotes();
@@ -68,10 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
 /* --- VERİ YÖNETİMİ --- */
 function loadData() {
     appData = null;
-    
+
     // Geçmiş tüm anahtarları tarayarak en dolu olanını (kaybolan veriyi) kurtar
     const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
-    
+
     for (const key of keysToCheck) {
         if (!appData) {
             try {
@@ -84,10 +84,10 @@ function loadData() {
                     }
                     if (hasTask) appData = parsed;
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
     }
-    
+
     if (!appData) {
         // Hiçbirinde veri yoksa boş başlat
         let raw = localStorage.getItem(STORAGE_KEY);
@@ -124,7 +124,7 @@ function setupBasicUI() {
     // Tarih Set
     const now = new Date();
     document.getElementById('headerDate').textContent = now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    
+
     // Geri Sayım
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const diff = EXAM_DATE - today;
@@ -155,7 +155,7 @@ function playSound(type) {
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
-        switch(type) {
+        switch (type) {
             case 'complete': // Görev tamamlama - kısa tiz bip
                 oscillator.type = 'sine';
                 oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
@@ -196,7 +196,7 @@ function playSound(type) {
                 gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 oscillator.start(); setTimeout(() => oscillator.stop(), 400);
         }
-    } catch(e) {}
+    } catch (e) { }
 }
 
 // Eski playBeep'i yeni sisteme yönlendir
@@ -233,7 +233,7 @@ function setupKeyboardShortcuts() {
         const tag = e.target.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-        switch(e.key) {
+        switch (e.key) {
             case ' ': // Space = Pomodoro başlat/durdur
                 e.preventDefault();
                 document.getElementById('btnPomoStart').click();
@@ -262,7 +262,7 @@ function setupKeyboardShortcuts() {
 /* --- PWA SERVICE WORKER KAYDI --- */
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js').catch(() => { });
     }
 }
 
@@ -275,11 +275,11 @@ function setupTabs() {
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             const panelName = 'panel' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1);
             const panel = document.getElementById(panelName);
-            if (panel) { 
-                panel.classList.add('active'); 
+            if (panel) {
+                panel.classList.add('active');
                 if (btn.dataset.tab === 'stats') renderStats();
                 if (btn.dataset.tab === 'notes') renderNotes();
-                
+
                 // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
                 const miniT = document.getElementById('miniTimer');
                 if (pomoIsRunning && btn.dataset.tab !== 'pomodoro') {
@@ -328,10 +328,10 @@ function renderToday() {
 
     renderWeeklyOverview();
     updatePomoTaskSelect(dayData);
-    
+
     // Hedef render
     const all = [...dayData.yeniKonular, ...dayData.tekrar];
-    if(all.length > 0) {
+    if (all.length > 0) {
         document.getElementById('dailyGoalDisplay').classList.remove('hidden');
         const req = Math.ceil(all.length * (appData.settings.goalPct / 100));
         document.getElementById('dailyGoalText').textContent = `En az ${req} konu bitir (%${appData.settings.goalPct})`;
@@ -342,7 +342,7 @@ function renderToday() {
 
 function renderTaskList(containerId, tasks, type) {
     const container = document.getElementById(containerId);
-    
+
     if (!tasks || tasks.length === 0) {
         container.innerHTML = `<div class="empty-state"><span class="empty-icon">🏖️</span><p>Bugün için plan yok.</p></div>`;
         return;
@@ -356,9 +356,9 @@ function renderTaskList(containerId, tasks, type) {
             currentSubject = task.subject;
             html += `<div class="subject-header">${escapeHtml(currentSubject)}</div>`;
         }
-        
+
         const hasNote = appData.notes[task.id] && appData.notes[task.id].trim() !== '';
-        
+
         let checkedAttr = task.completed ? 'checked' : '';
         let opacityStyle = task.completed ? 'opacity: 0.5; filter: grayscale(1);' : '';
 
@@ -391,19 +391,20 @@ function toggleTaskComplete(cb, taskId, type) {
     const list = appData.days[selectedDay][type];
     const task = list.find(t => t.id === taskId);
     if (!task) return;
-    
+
     task.completed = cb.checked;
     task.completedAt = task.completed ? new Date().toISOString() : null;
-    
-    if(task.completed) {
+
+    if (task.completed) {
         addPoints(10);
         confetti(30);
         playSound('complete');
         checkDailyGoalCompletion();
-        recordHeatmap();
+        recordHeatmap(task.text, true);
         scheduleSpacedRepetition(task);
     } else {
         addPoints(-10);
+        recordHeatmap(task.text, false);
     }
 
     saveData();
@@ -429,9 +430,9 @@ let draggedTaskData = null;
 
 function setupDragAndDrop(container, type) {
     const items = container.querySelectorAll('.task-item');
-    
+
     items.forEach(item => {
-        item.addEventListener('dragstart', function(e) {
+        item.addEventListener('dragstart', function (e) {
             this.classList.add('dragging');
             draggedTaskData = {
                 id: this.dataset.id,
@@ -442,24 +443,24 @@ function setupDragAndDrop(container, type) {
             e.dataTransfer.setData('text/html', this.innerHTML);
         });
 
-        item.addEventListener('dragend', function() {
+        item.addEventListener('dragend', function () {
             this.classList.remove('dragging');
             container.querySelectorAll('.task-item').forEach(el => el.classList.remove('drag-over'));
         });
 
-        item.addEventListener('dragover', function(e) {
+        item.addEventListener('dragover', function (e) {
             e.preventDefault();
             this.classList.add('drag-over');
         });
 
-        item.addEventListener('dragleave', function() {
+        item.addEventListener('dragleave', function () {
             this.classList.remove('drag-over');
         });
 
-        item.addEventListener('drop', function(e) {
+        item.addEventListener('drop', function (e) {
             e.preventDefault();
             this.classList.remove('drag-over');
-            
+
             const dropIndex = parseInt(this.dataset.index);
             const dragIndex = draggedTaskData.index;
 
@@ -469,7 +470,7 @@ function setupDragAndDrop(container, type) {
             const list = appData.days[selectedDay][type];
             const itemToMove = list.splice(dragIndex, 1)[0];
             list.splice(dropIndex, 0, itemToMove);
-            
+
             saveData();
             renderToday(); // Yeniden çiz
         });
@@ -490,8 +491,8 @@ function checkBadges() {
     if (!earned.includes('first_blood')) {
         let totalDone = 0;
         DAYS.forEach(d => {
-            totalDone += appData.days[d.key].tekrar.filter(t=>t.completed).length;
-            totalDone += appData.days[d.key].yeniKonular.filter(t=>t.completed).length;
+            totalDone += appData.days[d.key].tekrar.filter(t => t.completed).length;
+            totalDone += appData.days[d.key].yeniKonular.filter(t => t.completed).length;
         });
         if (totalDone >= 1) { earned.push('first_blood'); newBadge = 'first_blood'; }
     }
@@ -508,7 +509,7 @@ function checkBadges() {
         DAYS.forEach(d => {
             const arr = [...appData.days[d.key].tekrar, ...appData.days[d.key].yeniKonular];
             allTasks += arr.length;
-            doneTasks += arr.filter(t=>t.completed).length;
+            doneTasks += arr.filter(t => t.completed).length;
         });
         if (allTasks > 0 && (doneTasks / allTasks >= 0.5)) { earned.push('half_way'); newBadge = 'half_way'; }
     }
@@ -532,7 +533,7 @@ function checkBadges() {
 function updateStreakData() {
     const todayStr = new Date().toISOString().split('T')[0];
     const s = appData.streak;
-    
+
     // Check if user did any tasks today
     let didTaskToday = false;
     DAYS.forEach(d => {
@@ -547,7 +548,7 @@ function updateStreakData() {
             // Check if yesterday
             let yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
             let yStr = yesterday.toISOString().split('T')[0];
-            
+
             if (s.lastDate === yStr) {
                 s.current += 1; // Seri devam ediyor
             } else {
@@ -565,7 +566,7 @@ function setupPomodoro() {
     const circle = document.getElementById('pomoProgress');
     const radius = circle.r.baseVal.value;
     const circumference = radius * 2 * Math.PI;
-    
+
     circle.style.strokeDasharray = `${circumference} ${circumference}`;
     circle.style.transition = 'stroke-dashoffset 1s linear';
 
@@ -587,7 +588,7 @@ function setupPomodoro() {
 
     document.querySelectorAll('.pomo-mode').forEach(btn => {
         btn.addEventListener('click', () => {
-            if(pomoIsRunning) return showToast("Zamanlayıcı çalışırken mod değiştiremezsiniz.");
+            if (pomoIsRunning) return showToast("Zamanlayıcı çalışırken mod değiştiremezsiniz.");
             document.querySelectorAll('.pomo-mode').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             pomoMode = btn.dataset.mode;
@@ -611,7 +612,7 @@ function setupPomodoro() {
             btnStart.textContent = "Duraklat";
             btnStart.classList.add('running');
             pomoInterval = setInterval(() => {
-                if(pomoTimeRemaining > 0) {
+                if (pomoTimeRemaining > 0) {
                     pomoTimeRemaining--;
                     updateTimerVisuals();
                 } else {
@@ -643,25 +644,25 @@ function handlePomodoroComplete() {
     confetti(50);
     playSound('pomodoro');
     showToast("✨ Süre Doldu! Odaklanma Başarılı.");
-    
+
     if (pomoMode === 'work') {
         appData.pomodoro.totalCompleted++;
         const mins = parseInt(document.querySelector('.pomo-mode[data-mode="work"]').dataset.time);
         appData.pomodoro.totalMins += mins;
-        
+
         // Puan
         addPoints(15);
-        
+
         // Görevi otomatik tamamlama opsiyonu
         const select = document.getElementById('pomoTaskSelect');
         const taskId = select.value;
-        if(taskId) {
+        if (taskId) {
             // Görevi today tabsından bulup bitir
             const list = [...appData.days[selectedDay].tekrar, ...appData.days[selectedDay].yeniKonular];
-            const task = list.find(t=>t.id === taskId);
-            if(task && !task.completed) {
+            const task = list.find(t => t.id === taskId);
+            if (task && !task.completed) {
                 appData.pomodoro.history.push(`${new Date().toLocaleTimeString('tr-TR')} - ${task.subject || ''} (${task.text}) çalışıldı.`);
-                if(confirm(`"${task.text}" konusunu tamamlandı olarak işaretleyelim mi?`)) {
+                if (confirm(`"${task.text}" konusunu tamamlandı olarak işaretleyelim mi?`)) {
                     task.completed = true;
                     task.completedAt = new Date().toISOString();
                 }
@@ -672,10 +673,10 @@ function handlePomodoroComplete() {
 
         // Gamification Rozet Check (Pomo bazlı)
         let earned = appData.badges;
-        if(appData.pomodoro.totalCompleted >= 1 && !earned.includes('pomo_starter')) {
+        if (appData.pomodoro.totalCompleted >= 1 && !earned.includes('pomo_starter')) {
             earned.push('pomo_starter'); showToast(`🏆 Yeni Rozet: Pomodoro Çaylağı!`, true); playBeep();
         }
-        if(appData.pomodoro.totalCompleted >= 10 && !earned.includes('pomo_master')) {
+        if (appData.pomodoro.totalCompleted >= 10 && !earned.includes('pomo_master')) {
             earned.push('pomo_master'); showToast(`🏆 Yeni Rozet: Odak Ustası!`, true); playBeep();
         }
 
@@ -691,7 +692,7 @@ function renderPomoStats() {
 
     const histList = document.getElementById('pomoHistoryList');
     const histArr = appData.pomodoro?.history || [];
-    if(histArr.length > 0) {
+    if (histArr.length > 0) {
         histList.innerHTML = histArr.slice(-10).reverse().map(log => `<div class="pomo-h-item">${log}</div>`).join('');
     }
 }
@@ -699,8 +700,8 @@ function renderPomoStats() {
 function updatePomoTaskSelect(dayData) {
     const select = document.getElementById('pomoTaskSelect');
     select.innerHTML = '<option value="">-- Serbest Çalışma --</option>';
-    
-    const tasks = [...(dayData.tekrar||[]), ...(dayData.yeniKonular||[])].filter(t=>!t.completed);
+
+    const tasks = [...(dayData.tekrar || []), ...(dayData.yeniKonular || [])].filter(t => !t.completed);
     tasks.forEach(t => {
         const title = t.subject ? `${t.subject} - ${t.text}` : t.text;
         select.innerHTML += `<option value="${t.id}">${title}</option>`;
@@ -731,8 +732,8 @@ function renderWeeklyOverview() {
         const pct = total > 0 ? Math.round((done / total) * 100) : 0;
         const isToday = d.key === todayObj.key;
         const isActive = d.key === selectedDay;
-        
-        let barClass = total===0 ? 'none' : (done===total ? 'all-done' : 'partial');
+
+        let barClass = total === 0 ? 'none' : (done === total ? 'all-done' : 'partial');
 
         return `<div class="week-day-card ${isToday ? 'is-today' : ''} ${isActive ? 'active' : ''}" data-day="${d.key}" onclick="document.querySelector('.day-btn[data-day=\\'${d.key}\\']').click()">
             <div class="day-name">${d.short}</div>
@@ -756,7 +757,7 @@ let currentNoteTargetId = null;
 function renderNotes() {
     const container = document.getElementById('notesGrid');
     const filters = document.getElementById('notesFilters');
-    
+
     let allTasksWithNotes = [];
     const subjects = new Set();
 
@@ -765,8 +766,8 @@ function renderNotes() {
         ['tekrar', 'yeniKonular'].forEach(type => {
             (dayData[type] || []).forEach(t => {
                 if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
-                    allTasksWithNotes.push({...t, note: appData.notes[t.id]});
-                    if(t.subject) subjects.add(t.subject);
+                    allTasksWithNotes.push({ ...t, note: appData.notes[t.id] });
+                    if (t.subject) subjects.add(t.subject);
                 }
             });
         });
@@ -780,30 +781,30 @@ function renderNotes() {
 
     filters.style.display = 'flex';
     // Update Filter Buttons (Keep "all" but update subjects)
-    filters.innerHTML = `<button class="filter-btn active" data-subject="all" onclick="filterNotes('all', this)">Tümü</button>` + 
-                        Array.from(subjects).map(s => `<button class="filter-btn" data-subject="${s}" onclick="filterNotes('${s}', this)">${s}</button>`).join('');
+    filters.innerHTML = `<button class="filter-btn active" data-subject="all" onclick="filterNotes('all', this)">Tümü</button>` +
+        Array.from(subjects).map(s => `<button class="filter-btn" data-subject="${s}" onclick="filterNotes('${s}', this)">${s}</button>`).join('');
 
     renderNotesItems(allTasksWithNotes, container);
 }
 
 function filterNotes(subjPattern, btnEl) {
-    document.querySelectorAll('#notesFilters .filter-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('#notesFilters .filter-btn').forEach(b => b.classList.remove('active'));
     btnEl.classList.add('active');
-    
+
     let allTasksWithNotes = [];
     DAYS.forEach(d => {
         const dayData = appData.days[d.key];
         ['tekrar', 'yeniKonular'].forEach(type => {
             (dayData[type] || []).forEach(t => {
                 if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
-                    if(subjPattern === 'all' || t.subject === subjPattern) {
-                        allTasksWithNotes.push({...t, note: appData.notes[t.id]});
+                    if (subjPattern === 'all' || t.subject === subjPattern) {
+                        allTasksWithNotes.push({ ...t, note: appData.notes[t.id] });
                     }
                 }
             });
         });
     });
-    
+
     renderNotesItems(allTasksWithNotes, document.getElementById('notesGrid'));
 }
 
@@ -822,23 +823,23 @@ function renderNotesItems(items, container) {
 function renderStats() {
     // 1. Seriler ve Puanlar
     document.getElementById('dashStreak').textContent = appData.streak?.current || 0;
-    
+
     // 2. Tamamlama Oranı (Donut)
     let totalItems = 0, totalDone = 0;
     DAYS.forEach(d => {
         ['tekrar', 'yeniKonular'].forEach(type => {
             totalItems += (appData.days[d.key][type] || []).length;
-            totalDone += (appData.days[d.key][type] || []).filter(t=>t.completed).length;
+            totalDone += (appData.days[d.key][type] || []).filter(t => t.completed).length;
         });
     });
-    const pct = totalItems > 0 ? Math.round((totalDone/totalItems)*100) : 0;
+    const pct = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
     document.getElementById('dashCompletionText').textContent = pct + '%';
     document.getElementById('dashCompletionDonut').style.strokeDasharray = `${pct}, 100`;
 
     // 3. Rozet Önizleme
     const previewContainer = document.getElementById('badgesPreview');
     previewContainer.innerHTML = '';
-    
+
     const badgeKeys = Object.keys(BADGES_DEFS);
     // Rastgele veya ilk 4 rozeti göster
     badgeKeys.slice(0, 4).forEach(bKey => {
@@ -870,25 +871,25 @@ function setupModals() {
     document.getElementById('btnCloseNote').addEventListener('click', () => noteModal.classList.remove('show'));
     document.getElementById('btnSaveNote').addEventListener('click', () => {
         const text = document.getElementById('noteModalText').value;
-        if(text.trim() === '') delete appData.notes[currentNoteTargetId];
+        if (text.trim() === '') delete appData.notes[currentNoteTargetId];
         else appData.notes[currentNoteTargetId] = text;
         saveData();
-        
-        if(appData.notes[currentNoteTargetId] && !appData.badges.includes('note_taker')) {
+
+        if (appData.notes[currentNoteTargetId] && !appData.badges.includes('note_taker')) {
             appData.badges.push('note_taker');
             showToast("🏆 Yeni Rozet: Kâtip", true); playBeep();
         }
-        
+
         noteModal.classList.remove('show');
         showToast("Not kaydedildi 📝");
         renderToday();
-        if(document.querySelector('.tab-btn[data-tab="notes"]').classList.contains('active')) renderNotes();
+        if (document.querySelector('.tab-btn[data-tab="notes"]').classList.contains('active')) renderNotes();
     });
 
     // Badges Modal
     const badgesModal = document.getElementById('badgesModalOverlay');
     const openBadges = () => { populateFullBadges(); badgesModal.classList.add('show'); };
-    
+
     document.getElementById('btnCloseBadges').addEventListener('click', () => badgesModal.classList.remove('show'));
     document.getElementById('headerStreakBadge').addEventListener('click', openBadges);
     document.getElementById('headerPointsBadge').addEventListener('click', openBadges);
@@ -903,7 +904,7 @@ function setupSettings() {
 
     document.getElementById('btnSaveGoal').addEventListener('click', () => {
         const val = parseInt(inputGoal.value);
-        if(val >= 1 && val <= 100) {
+        if (val >= 1 && val <= 100) {
             appData.settings.goalPct = val;
             saveData();
             showToast("Hedef güncellendi.");
@@ -924,25 +925,25 @@ function setupSettings() {
 
     document.getElementById('importFileInput').addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if(!file) return;
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const parsed = JSON.parse(event.target.result);
-                if(parsed && parsed.days) {
+                if (parsed && parsed.days) {
                     appData = parsed;
                     saveData();
                     showToast("Yedek başarıyla geri yüklendi! Sayfa yenileniyor...");
                     setTimeout(() => location.reload(), 1500);
                 } else { alert("Geçersiz yedek dosyası!"); }
-            } catch(err) { alert("Dosya okuma hatası!"); }
+            } catch (err) { alert("Dosya okuma hatası!"); }
         };
         reader.readAsText(file);
     });
 
     document.getElementById('btnHardReset').addEventListener('click', () => {
-        if(confirm("DİKKAT! Tüm verileriniz kalıcı olarak silinecek. Emin misiniz?")) {
-            if(confirm("Son Kararın mı? (İstersen önce üstten yedeğini al)")) {
+        if (confirm("DİKKAT! Tüm verileriniz kalıcı olarak silinecek. Emin misiniz?")) {
+            if (confirm("Son Kararın mı? (İstersen önce üstten yedeğini al)")) {
                 localStorage.removeItem(STORAGE_KEY);
                 localStorage.removeItem(HISTORY_KEY);
                 location.reload();
@@ -961,7 +962,7 @@ function confetti(amount = 50) {
     const particles = [];
     const colors = ['#f85149', '#3fb950', '#58a6ff', '#bc8cff', '#fbbf24'];
 
-    for(let i=0; i<amount; i++) {
+    for (let i = 0; i < amount; i++) {
         particles.push({
             x: canvas.width / 2, y: canvas.height / 2 + 100,
             r: Math.random() * 6 + 2,
@@ -973,10 +974,10 @@ function confetti(amount = 50) {
     }
 
     function draw() {
-        ctx.clearRect(0,0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         let active = false;
         particles.forEach(p => {
-            if(p.y < canvas.height) active = true;
+            if (p.y < canvas.height) active = true;
             ctx.beginPath();
             ctx.lineWidth = p.r;
             ctx.strokeStyle = p.color;
@@ -986,8 +987,8 @@ function confetti(amount = 50) {
             p.x += p.dx; p.y += p.dy; p.dy += 0.2; // gravity
             p.tilt += 0.1; // spin
         });
-        if(active) requestAnimationFrame(draw);
-        else ctx.clearRect(0,0, canvas.width, canvas.height);
+        if (active) requestAnimationFrame(draw);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
     draw();
 }
@@ -1006,22 +1007,22 @@ function buildWeeklyForm() {
     DAYS.forEach(day => {
         const tItems = appData.days[day.key].tekrar || [];
         const yItems = appData.days[day.key].yeniKonular || [];
-        
-        if(tItems.length > 0) {
+
+        if (tItems.length > 0) {
             tekrarLines.push(day.label);
             let s = null;
             tItems.forEach(i => {
-                if(i.subject && i.subject !== s) { s=i.subject; tekrarLines.push(s); }
+                if (i.subject && i.subject !== s) { s = i.subject; tekrarLines.push(s); }
                 tekrarLines.push('-' + i.text);
             });
             tekrarLines.push('');
         }
-        
-        if(yItems.length > 0) {
+
+        if (yItems.length > 0) {
             yeniLines.push(day.label);
             let s = null;
             yItems.forEach(i => {
-                if(i.subject && i.subject !== s) { s=i.subject; yeniLines.push(s); }
+                if (i.subject && i.subject !== s) { s = i.subject; yeniLines.push(s); }
                 yeniLines.push('-' + i.text);
             });
             yeniLines.push('');
@@ -1047,7 +1048,7 @@ function buildWeeklyForm() {
 function setupAutoSaveDrafts() {
     const yeniEl = document.getElementById('inputBulkYeni');
     const tekrarEl = document.getElementById('inputBulkTekrar');
-    
+
     let saveTimeout = null;
     const autoSave = () => {
         clearTimeout(saveTimeout);
@@ -1086,7 +1087,7 @@ function setupFormActions() {
     });
 
     document.getElementById('btnClear').addEventListener('click', () => {
-        if(confirm('Mevcut haftanın TÜM programını silmek istediğine emin misin?')) {
+        if (confirm('Mevcut haftanın TÜM programını silmek istediğine emin misin?')) {
             document.getElementById('inputBulkTekrar').value = '';
             document.getElementById('inputBulkYeni').value = '';
             DAYS.forEach(d => { appData.days[d.key] = { tekrar: [], yeniKonular: [] }; });
@@ -1097,7 +1098,7 @@ function setupFormActions() {
 
     document.getElementById('btnResetWeek').addEventListener('click', () => {
         if (!confirm('Yeni haftaya geçilecek:\n\n✅ Mevcut hafta arşivlenecek\n🔄 Tamamlanan konular sıfırlanacak\n📋 Program yapısı korunacak\n\nDevam?')) return;
-        
+
         // Reset completions
         DAYS.forEach(d => {
             const dd = appData.days[d.key];
@@ -1105,7 +1106,7 @@ function setupFormActions() {
                 (dd[type] || []).forEach(t => { t.completed = false; t.completedAt = null; });
             });
         });
-        
+
         appData.weekLabel = getCurrentWeekLabel();
         saveData();
         renderToday();
@@ -1136,7 +1137,7 @@ function parseBulkText(text) {
         if (!currentDay) continue;
 
         const topicMatch = trimmed.match(/^[-*•]\s*(.*)/);
-        if (topicMatch) { result[currentDay].push({ subject: currentSubject, text: topicMatch[1].trim() }); } 
+        if (topicMatch) { result[currentDay].push({ subject: currentSubject, text: topicMatch[1].trim() }); }
         else { currentSubject = trimmed; }
     }
     return result;
@@ -1222,10 +1223,27 @@ function markSrDone(srId) {
 }
 
 /* --- 2. ISI HARİTASI (HEATMAP) --- */
-function recordHeatmap() {
+function recordHeatmap(taskText = "", isAdd = true) {
     const todayStr = new Date().toISOString().split('T')[0];
-    if (!appData.heatmap[todayStr]) appData.heatmap[todayStr] = 0;
-    appData.heatmap[todayStr]++;
+
+    // Eski sayacı array'e çevir
+    if (typeof appData.heatmap[todayStr] === 'number') {
+        const count = appData.heatmap[todayStr];
+        appData.heatmap[todayStr] = Array(count).fill("Toplu görev");
+    }
+
+    if (!appData.heatmap[todayStr]) appData.heatmap[todayStr] = [];
+
+    if (isAdd) {
+        if (taskText) appData.heatmap[todayStr].push(taskText);
+    } else {
+        // Çıkarma işlemi (uncheck)
+        if (taskText) {
+            const idx = appData.heatmap[todayStr].indexOf(taskText);
+            if (idx > -1) appData.heatmap[todayStr].splice(idx, 1);
+        }
+    }
+
     saveData();
 }
 
@@ -1234,16 +1252,41 @@ function renderHeatmap() {
     if (!container) return;
     const today = new Date();
     let html = '';
-    const maxVal = Math.max(1, ...Object.values(appData.heatmap || {}));
+
+    // Max val bulmak için (hem eski sayı hem yeni array formatını destekler)
+    let maxVal = 1;
+    Object.values(appData.heatmap || {}).forEach(v => {
+        const count = Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0);
+        if (count > maxVal) maxVal = count;
+    });
 
     for (let i = 89; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
-        const val = (appData.heatmap || {})[dateStr] || 0;
-        const opacity = val === 0 ? 0.06 : Math.max(0.2, val / maxVal);
-        const title = `${dateStr}: ${val} görev`;
-        html += `<div class="hm-cell" style="opacity:${opacity}" title="${title}"></div>`;
+        const rawVal = (appData.heatmap || {})[dateStr] || 0;
+
+        let count = 0;
+        let tasksHtml = '';
+        if (Array.isArray(rawVal)) {
+            count = rawVal.length;
+            tasksHtml = rawVal.map(t => `<li>${escapeHtml(t)}</li>`).join('');
+        } else if (typeof rawVal === 'number') {
+            count = rawVal;
+            tasksHtml = `<li>${count} görev tamamlandı (Eski kayıt)</li>`;
+        }
+
+        const opacity = count === 0 ? 0.06 : Math.max(0.2, count / maxVal);
+
+        html += `
+            <div class="hm-cell-wrapper">
+                <div class="hm-cell" style="opacity:${opacity}"></div>
+                <div class="hm-tooltip">
+                    <strong>${dateStr}</strong>
+                    ${count > 0 ? `<ul>${tasksHtml}</ul>` : '<p>Görev yok</p>'}
+                </div>
+            </div>
+        `;
     }
     container.innerHTML = html;
 }
@@ -1331,17 +1374,36 @@ function setupExams() {
 
         const results = {};
         let totalNet = 0;
+        let gyNet = 0;
+        let gkNet = 0;
+
         EXAM_SUBJECTS.forEach(s => {
             const d = parseFloat(document.getElementById(`examD_${s.key}`).value) || 0;
             const y = parseFloat(document.getElementById(`examY_${s.key}`).value) || 0;
             const net = Math.max(0, d - (y * 0.25));
             results[s.key] = { dogru: d, yanlis: y, net: parseFloat(net.toFixed(1)) };
             totalNet += net;
+
+            if (s.key === 'turkce' || s.key === 'matematik') {
+                gyNet += net;
+            } else {
+                gkNet += net;
+            }
         });
+
+        // KPSS P93 (Ön Lisans) Puan Tahminleri
+        const p2024 = Math.min(100, totalNet === 0 ? 0 : 50.5 + (gyNet * 0.43) + (gkNet * 0.40));
+        const p2022 = Math.min(100, totalNet === 0 ? 0 : 51.5 + (gyNet * 0.46) + (gkNet * 0.38));
+        const p2020 = Math.min(100, totalNet === 0 ? 0 : 49.0 + (gyNet * 0.45) + (gkNet * 0.42));
 
         appData.exams.push({
             id: genId(), date, name,
-            results, totalNet: parseFloat(totalNet.toFixed(1))
+            results, totalNet: parseFloat(totalNet.toFixed(1)),
+            scores: {
+                y2024: parseFloat(p2024.toFixed(3)),
+                y2022: parseFloat(p2022.toFixed(3)),
+                y2020: parseFloat(p2020.toFixed(3))
+            }
         });
 
         saveData();
@@ -1417,6 +1479,24 @@ function renderExams() {
                             ${diffStr}
                         </div>
                     </div>
+                    
+                    ${exam.scores ? `
+                    <div class="exam-scores-pill-group">
+                        <div class="score-pill current">
+                            <span class="score-year">2024 Puan:</span>
+                            <span class="score-val">${exam.scores.y2024.toFixed(3)}</span>
+                        </div>
+                        <div class="score-pill">
+                            <span class="score-year">2022 Puan:</span>
+                            <span class="score-val">${exam.scores.y2022.toFixed(3)}</span>
+                        </div>
+                        <div class="score-pill">
+                            <span class="score-year">2020 Puan:</span>
+                            <span class="score-val">${exam.scores.y2020.toFixed(3)}</span>
+                        </div>
+                    </div>
+                    ` : ''}
+
                     <table class="exam-table">
                         <tr>${EXAM_SUBJECTS.map(s => `<th>${s.label}</th>`).join('')}</tr>
                         <tr>${subjectCells}</tr>
@@ -1530,7 +1610,7 @@ function scheduleReminders() {
 /* --- 6. RENDER STATS GÜNCELLEME (HEATMAP + DERS ANALİZİ EKLENDİ) --- */
 const _origRenderStats = typeof renderStats === 'function' ? renderStats : null;
 // renderStats fonksiyonunu override etmeden, onun çağrıldığı yerlerde ek render ekleyelim
-(function() {
+(function () {
     const origSetupTabs = setupTabs;
     // renderStats çağrıldığında heatmap ve subject analysis da render edilsin
     const origFn = window.renderStats;
@@ -1542,7 +1622,7 @@ const _origRenderStats = typeof renderStats === 'function' ? renderStats : null;
 // renderStats içine hook ekle - mevcut renderStats'ın sonuna ek render
 const _patchedRenderStatsOnce = (() => {
     const origBody = renderStats;
-    renderStats = function() {
+    renderStats = function () {
         origBody.call(this);
         renderHeatmap();
         renderSubjectAnalysis();
@@ -1578,8 +1658,8 @@ function setupDailyChallenge() {
     const CHALLENGE_STORAGE = 'kpss_daily_challenge';
     const todayStr = new Date().toISOString().split('T')[0];
     let stored = null;
-    
-    try { stored = JSON.parse(localStorage.getItem(CHALLENGE_STORAGE)); } catch(e) {}
+
+    try { stored = JSON.parse(localStorage.getItem(CHALLENGE_STORAGE)); } catch (e) { }
 
     if (!stored || stored.date !== todayStr) {
         // Yeni gün = yeni meydan okuma seç
@@ -1587,21 +1667,21 @@ function setupDailyChallenge() {
         const argOptions = template.args.filter(a => a !== null);
         const arg = argOptions.length > 0 ? argOptions[Math.floor(Math.random() * argOptions.length)] : null;
         const text = arg !== null ? template.text.replace('{n}', arg) : template.text;
-        
+
         stored = { date: todayStr, text, templateIdx: CHALLENGE_TEMPLATES.indexOf(template), arg, claimed: false };
         localStorage.setItem(CHALLENGE_STORAGE, JSON.stringify(stored));
     }
 
     const dcText = document.getElementById('dcText');
     const claimBtn = document.getElementById('btnClaimChallenge');
-    
+
     dcText.textContent = stored.text;
 
     // Tamamlanmış mı kontrol et
     function checkChallenge() {
         const template = CHALLENGE_TEMPLATES[stored.templateIdx];
         if (!template) return false;
-        try { return template.check(stored.arg); } catch(e) { return false; }
+        try { return template.check(stored.arg); } catch (e) { return false; }
     }
 
     function updateChallengeUI() {
@@ -1668,7 +1748,7 @@ function renderAIAdvice() {
             icon: '⚠️',
             type: 'warning',
             title: 'Odaklanman Gereken Dersler',
-            text: `<strong>${weakSubjects.map(s => s.name).join(', ')}</strong> derslerinde tamamlama oranın düşük (%${weakSubjects.map(s=>s.pct).join(', %')}). Bu hafta bu derslere öncelik ver.`
+            text: `<strong>${weakSubjects.map(s => s.name).join(', ')}</strong> derslerinde tamamlama oranın düşük (%${weakSubjects.map(s => s.pct).join(', %')}). Bu hafta bu derslere öncelik ver.`
         });
     }
 
