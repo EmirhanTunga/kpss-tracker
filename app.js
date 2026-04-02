@@ -894,6 +894,10 @@ function setupModals() {
     document.getElementById('headerStreakBadge').addEventListener('click', openBadges);
     document.getElementById('headerPointsBadge').addEventListener('click', openBadges);
     document.getElementById('btnShowAllBadges').addEventListener('click', openBadges);
+
+    // Heatmap Modal
+    const heatmapModal = document.getElementById('heatmapModalOverlay');
+    document.getElementById('btnCloseHeatmap').addEventListener('click', () => heatmapModal.classList.remove('show'));
 }
 
 
@@ -1266,29 +1270,48 @@ function renderHeatmap() {
         const rawVal = (appData.heatmap || {})[dateStr] || 0;
 
         let count = 0;
-        let tasksHtml = '';
         if (Array.isArray(rawVal)) {
             count = rawVal.length;
-            tasksHtml = rawVal.map(t => `<li>${escapeHtml(t)}</li>`).join('');
         } else if (typeof rawVal === 'number') {
             count = rawVal;
-            tasksHtml = `<li>${count} görev tamamlandı (Eski kayıt)</li>`;
         }
 
         const opacity = count === 0 ? 0.06 : Math.max(0.2, count / maxVal);
 
         html += `
-            <div class="hm-cell-wrapper">
-                <div class="hm-cell" style="opacity:${opacity}"></div>
-                <div class="hm-tooltip">
-                    <strong>${dateStr}</strong>
-                    ${count > 0 ? `<ul>${tasksHtml}</ul>` : '<p>Görev yok</p>'}
-                </div>
+            <div class="hm-cell-wrapper" title="${dateStr}">
+                <div class="hm-cell" style="opacity:${opacity}" onclick="openHeatmapModal('${dateStr}')"></div>
             </div>
         `;
     }
     container.innerHTML = html;
 }
+
+window.openHeatmapModal = function (dateStr) {
+    const rawVal = (appData.heatmap || {})[dateStr] || 0;
+    const content = document.getElementById('heatmapModalContent');
+    const title = document.getElementById('heatmapModalTitle');
+
+    title.textContent = `📅 ${dateStr} Detayı`;
+
+    let count = 0;
+    let tasksHtml = '';
+    if (Array.isArray(rawVal)) {
+        count = rawVal.length;
+        tasksHtml = rawVal.map(t => `<li>${escapeHtml(t)}</li>`).join('');
+    } else if (typeof rawVal === 'number') {
+        count = rawVal;
+        tasksHtml = `<li>${count} görev tamamlandı (Eski kayıt)</li>`;
+    }
+
+    if (count > 0) {
+        content.innerHTML = `<ul class="hm-modal-list">${tasksHtml}</ul>`;
+    } else {
+        content.innerHTML = `<div class="empty-state"><span class="empty-icon">⏳</span><p>Bu tarihte kaydedilmiş görev yok.</p></div>`;
+    }
+
+    document.getElementById('heatmapModalOverlay').classList.add('show');
+};
 
 /* --- 3. DERS BAZLI ANALİZ --- */
 function renderSubjectAnalysis() {
