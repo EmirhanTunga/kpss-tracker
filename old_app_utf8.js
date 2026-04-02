@@ -1,6 +1,6 @@
-// ===== KPSS Başarı Rehberi - Ana Uygulama Dosyası =====
+﻿// ===== KPSS Ba┼şar─▒ Rehberi - Ana Uygulama Dosyas─▒ =====
 
-/* --- SABİTLER VE VERİ YAPISI --- */
+/* --- SAB─░TLER VE VER─░ YAPISI --- */
 const STORAGE_KEY = 'kpss_tracker_v2';
 const HISTORY_KEY = 'kpss_tracker_history';
 const DRAFT_KEY = 'kpss_tracker_drafts';
@@ -8,24 +8,24 @@ const EXAM_DATE = new Date(2026, 9, 4); // 4 Ekim 2026
 
 const DAYS = [
     { key: 'pazartesi', label: 'Pazartesi', short: 'Pzt', jsDay: 1 },
-    { key: 'sali', label: 'Salı', short: 'Sal', jsDay: 2 },
-    { key: 'carsamba', label: 'Çarşamba', short: 'Çar', jsDay: 3 },
-    { key: 'persembe', label: 'Perşembe', short: 'Per', jsDay: 4 },
+    { key: 'sali', label: 'Sal─▒', short: 'Sal', jsDay: 2 },
+    { key: 'carsamba', label: '├çar┼şamba', short: '├çar', jsDay: 3 },
+    { key: 'persembe', label: 'Per┼şembe', short: 'Per', jsDay: 4 },
     { key: 'cuma', label: 'Cuma', short: 'Cum', jsDay: 5 },
     { key: 'cumartesi', label: 'Cumartesi', short: 'Cmt', jsDay: 6 },
     { key: 'pazar', label: 'Pazar', short: 'Paz', jsDay: 0 }
 ];
 
-// Kazanılabilir rozetlerin tanımları
+// Kazan─▒labilir rozetlerin tan─▒mlar─▒
 const BADGES_DEFS = {
-    'first_blood': { icon: '🎯', name: 'İlk Adım', desc: 'Sistemde ilk konunu başarıyla tamamladın.' },
-    'pomo_starter': { icon: '🍅', name: 'Pomodoro Çaylağı', desc: 'İlk Pomodoro seansını tamamladın.' },
-    'pomo_master': { icon: '🕰️', name: 'Odak Ustası', desc: 'Toplam 10 Pomodoro seansı tamamladın.' },
-    'streak_3': { icon: '🔥', name: 'Alev Aldın', desc: 'Üst üste 3 gün çalıştın.' },
-    'streak_7': { icon: '🚀', name: 'Roket', desc: 'Üst üste 7 gün çalıştın.' },
-    'night_owl': { icon: '🦉', name: 'Gece Kuşu', desc: 'Gece 23:00\'ten sonra ders çalıştın.' },
-    'note_taker': { icon: '📝', name: 'Kâtip', desc: 'Sisteme ilk notunu ekledin.' },
-    'half_way': { icon: '🎢', name: 'Yarı Yol', desc: 'Haftalık programın %50\'sini tamamladın.' }
+    'first_blood': { icon: '­şÄ»', name: '─░lk Ad─▒m', desc: 'Sistemde ilk konunu ba┼şar─▒yla tamamlad─▒n.' },
+    'pomo_starter': { icon: '­şıà', name: 'Pomodoro ├çayla─ş─▒', desc: '─░lk Pomodoro seans─▒n─▒ tamamlad─▒n.' },
+    'pomo_master': { icon: '­şò░´©Å', name: 'Odak Ustas─▒', desc: 'Toplam 10 Pomodoro seans─▒ tamamlad─▒n.' },
+    'streak_3': { icon: '­şöÑ', name: 'Alev Ald─▒n', desc: '├£st ├╝ste 3 g├╝n ├ğal─▒┼şt─▒n.' },
+    'streak_7': { icon: '­şÜÇ', name: 'Roket', desc: '├£st ├╝ste 7 g├╝n ├ğal─▒┼şt─▒n.' },
+    'night_owl': { icon: '­şĞë', name: 'Gece Ku┼şu', desc: 'Gece 23:00\'ten sonra ders ├ğal─▒┼şt─▒n.' },
+    'note_taker': { icon: '­şôØ', name: 'K├ótip', desc: 'Sisteme ilk notunu ekledin.' },
+    'half_way': { icon: '­şÄó', name: 'Yar─▒ Yol', desc: 'Haftal─▒k program─▒n %50\'sini tamamlad─▒n.' }
 };
 
 let appData = null;
@@ -38,7 +38,7 @@ let pomoTotalTime = 25 * 60;
 let pomoMode = 'work'; // work, shortBreak, longBreak
 let pomoIsRunning = false;
 
-/* --- BAŞLANGIÇ (INIT) --- */
+/* --- BA┼ŞLANGI├ç (INIT) --- */
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     setupBasicUI();
@@ -55,77 +55,61 @@ document.addEventListener('DOMContentLoaded', () => {
     setupExams();
     setupNotifications();
     registerServiceWorker();
-
+    
     // Initial Renders
     renderToday();
+    renderNotes();
     renderStats();
     renderSpacedRepetition();
     renderExams();
-    setupDailyChallenge();
 });
 
-/* --- VERİ YÖNETİMİ --- */
+/* --- VER─░ Y├ûNET─░M─░ --- */
 function loadData() {
-    try {
-        appData = null;
-
-        let rawStorage = localStorage.getItem(STORAGE_KEY);
-        if (rawStorage) {
-            appData = JSON.parse(rawStorage);
-        } else {
-            appData = { weekLabel: getCurrentWeekLabel(), days: {} };
-        }
-
-        // Geçmiş sınavlari toplayıp kaybolmasını önleme mekanizması (sadece sınavlar için)
-        const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
-        let allFoundExams = [];
-
-        for (const key of keysToCheck) {
+    appData = null;
+    
+    // Ge├ğmi┼ş t├╝m anahtarlar─▒ tarayarak en dolu olan─▒n─▒ (kaybolan veriyi) kurtar
+    const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
+    
+    for (const key of keysToCheck) {
+        if (!appData) {
             try {
                 let raw = localStorage.getItem(key);
                 if (raw) {
                     let parsed = JSON.parse(raw);
-                    if (parsed.exams && Array.isArray(parsed.exams)) {
-                        parsed.exams.forEach(ex => {
-                            if (!allFoundExams.find(e => e.id === ex.id)) {
-                                allFoundExams.push(ex);
-                            }
-                        });
+                    let hasTask = false;
+                    for (let d of Object.values(parsed.days || {})) {
+                        if (((d.tekrar || []).length > 0) || ((d.yeniKonular || []).length > 0)) hasTask = true;
                     }
+                    if (hasTask) appData = parsed;
                 }
-            } catch (e) { }
+            } catch(e) {}
         }
-
-        // Yeni model default değerleri
-        if (!appData.notes) appData.notes = {};
-        if (!appData.pomodoro) appData.pomodoro = { totalCompleted: 0, totalMins: 0, history: [] };
-        if (!appData.badges) appData.badges = [];
-        if (!appData.streak) appData.streak = { current: 0, lastDate: null };
-        if (!appData.points) appData.points = 0;
-        if (!appData.settings) appData.settings = { goalPct: 80 };
-        if (!appData.spacedRep) appData.spacedRep = [];
-        if (!appData.exams) appData.exams = [];
-        if (!appData.heatmap) appData.heatmap = {};
-
-        // Sınavları güvenli bir şekilde birleştir (eski yedeklerden bulduklarımızı dahil et)
-        if (allFoundExams && allFoundExams.length > 0) {
-            allFoundExams.forEach(ex => {
-                if (!appData.exams.find(e => e.id === ex.id)) {
-                    appData.exams.push(ex);
-                }
-            });
-        }
-
-        DAYS.forEach(d => {
-            if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
-        });
-
-        saveData();
-        updateHeaderStats();
-    } catch (e) {
-        console.error('Veri yükleme hatası', e);
-        if (!appData) appData = { weekLabel: getCurrentWeekLabel(), days: {} };
     }
+    
+    if (!appData) {
+        // Hi├ğbirinde veri yoksa bo┼ş ba┼şlat
+        let raw = localStorage.getItem(STORAGE_KEY);
+        appData = raw ? JSON.parse(raw) : { weekLabel: getCurrentWeekLabel(), days: {} };
+    }
+
+    // Yeni model default de─şerleri
+    if (!appData.notes) appData.notes = {};
+    if (!appData.pomodoro) appData.pomodoro = { totalCompleted: 0, totalMins: 0, history: [] };
+    if (!appData.badges) appData.badges = [];
+    if (!appData.streak) appData.streak = { current: 0, lastDate: null };
+    if (!appData.points) appData.points = 0;
+    if (!appData.settings) appData.settings = { goalPct: 80 };
+    if (!appData.spacedRep) appData.spacedRep = [];
+    if (!appData.exams) appData.exams = [];
+    if (!appData.heatmap) appData.heatmap = {};
+
+    DAYS.forEach(d => {
+        if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
+    });
+
+    saveData();
+    updateHeaderStats();
 }
 
 function saveData() {
@@ -139,8 +123,8 @@ function setupBasicUI() {
     // Tarih Set
     const now = new Date();
     document.getElementById('headerDate').textContent = now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-    // Geri Sayım
+    
+    // Geri Say─▒m
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const diff = EXAM_DATE - today;
     document.getElementById('countdownNumber').textContent = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
@@ -161,7 +145,7 @@ function showToast(msg, isAchievement = false) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-/* --- GELİŞMİŞ SESLİ BİLDİRİMLER --- */
+/* --- GEL─░┼ŞM─░┼Ş SESL─░ B─░LD─░R─░MLER --- */
 function playSound(type) {
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -170,8 +154,8 @@ function playSound(type) {
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
 
-        switch (type) {
-            case 'complete': // Görev tamamlama - kısa tiz bip
+        switch(type) {
+            case 'complete': // G├Ârev tamamlama - k─▒sa tiz bip
                 oscillator.type = 'sine';
                 oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
                 gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
@@ -186,7 +170,7 @@ function playSound(type) {
                 oscillator.frequency.setValueAtTime(1047, audioCtx.currentTime + 0.6);// C6
                 oscillator.start(); setTimeout(() => oscillator.stop(), 800);
                 break;
-            case 'badge': // Rozet kazanma - özel jingle
+            case 'badge': // Rozet kazanma - ├Âzel jingle
                 oscillator.type = 'triangle';
                 gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
@@ -211,13 +195,13 @@ function playSound(type) {
                 gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 oscillator.start(); setTimeout(() => oscillator.stop(), 400);
         }
-    } catch (e) { }
+    } catch(e) {}
 }
 
-// Eski playBeep'i yeni sisteme yönlendir
+// Eski playBeep'i yeni sisteme y├Ânlendir
 function playBeep() { playSound('default'); }
 
-/* --- TEMA GEÇİŞİ (KARANLIK/AYDINLIK) --- */
+/* --- TEMA GE├ç─░┼Ş─░ (KARANLIK/AYDINLIK) --- */
 function setupTheme() {
     const saved = localStorage.getItem('kpss_theme') || 'dark';
     applyTheme(saved);
@@ -235,8 +219,8 @@ function toggleTheme() {
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('btnThemeToggle');
-    if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
-    // PWA theme-color güncelle
+    if (btn) btn.textContent = theme === 'light' ? 'ÔİÇ´©Å' : '­şîÖ';
+    // PWA theme-color g├╝ncelle
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.content = theme === 'light' ? '#f0f2f5' : '#06080f';
 }
@@ -244,22 +228,22 @@ function applyTheme(theme) {
 /* --- KLAVYE KISAYOLLARI --- */
 function setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-        // Input veya textarea içindeyse jönlendir
+        // Input veya textarea i├ğindeyse j├Ânlendir
         const tag = e.target.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-        switch (e.key) {
-            case ' ': // Space = Pomodoro başlat/durdur
+        switch(e.key) {
+            case ' ': // Space = Pomodoro ba┼şlat/durdur
                 e.preventDefault();
                 document.getElementById('btnPomoStart').click();
                 break;
-            case 'r': case 'R': // R = Pomodoro sıfırla
+            case 'r': case 'R': // R = Pomodoro s─▒f─▒rla
                 document.getElementById('btnPomoReset').click();
                 break;
-            case 't': case 'T': // T = Tema değiştir
+            case 't': case 'T': // T = Tema de─şi┼ştir
                 toggleTheme();
                 break;
-            case 's': case 'S': // S = Programı kaydet (sadece program sekmesindeyse)
+            case 's': case 'S': // S = Program─▒ kaydet (sadece program sekmesindeyse)
                 if (document.getElementById('panelWeekly').classList.contains('active')) {
                     e.preventDefault();
                     document.getElementById('btnSave').click();
@@ -277,11 +261,11 @@ function setupKeyboardShortcuts() {
 /* --- PWA SERVICE WORKER KAYDI --- */
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(() => { });
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 }
 
-/* --- TAB YÖNETİMİ --- */
+/* --- TAB Y├ûNET─░M─░ --- */
 function setupTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -290,11 +274,12 @@ function setupTabs() {
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             const panelName = 'panel' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1);
             const panel = document.getElementById(panelName);
-            if (panel) {
-                panel.classList.add('active');
+            if (panel) { 
+                panel.classList.add('active'); 
                 if (btn.dataset.tab === 'stats') renderStats();
-
-                // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
+                if (btn.dataset.tab === 'notes') renderNotes();
+                
+                // E─şer pomodoro ├ğal─▒┼ş─▒yorsa ve tab pomodoro de─şilse mini timeri g├Âster
                 const miniT = document.getElementById('miniTimer');
                 if (pomoIsRunning && btn.dataset.tab !== 'pomodoro') {
                     miniT.classList.remove('hidden');
@@ -328,7 +313,7 @@ function setupDaySelector() {
     });
 }
 
-/* --- RENDER TODAY (DRAG & DROP DESTEKLİ) --- */
+/* --- RENDER TODAY (DRAG & DROP DESTEKL─░) --- */
 function renderToday() {
     const dayData = appData.days[selectedDay];
     if (!dayData) return;
@@ -342,10 +327,10 @@ function renderToday() {
 
     renderWeeklyOverview();
     updatePomoTaskSelect(dayData);
-
+    
     // Hedef render
     const all = [...dayData.yeniKonular, ...dayData.tekrar];
-    if (all.length > 0) {
+    if(all.length > 0) {
         document.getElementById('dailyGoalDisplay').classList.remove('hidden');
         const req = Math.ceil(all.length * (appData.settings.goalPct / 100));
         document.getElementById('dailyGoalText').textContent = `En az ${req} konu bitir (%${appData.settings.goalPct})`;
@@ -356,9 +341,9 @@ function renderToday() {
 
 function renderTaskList(containerId, tasks, type) {
     const container = document.getElementById(containerId);
-
+    
     if (!tasks || tasks.length === 0) {
-        container.innerHTML = `<div class="empty-state"><span class="empty-icon">🏖️</span><p>Bugün için plan yok.</p></div>`;
+        container.innerHTML = `<div class="empty-state"><span class="empty-icon">­şÅû´©Å</span><p>Bug├╝n i├ğin plan yok.</p></div>`;
         return;
     }
 
@@ -370,17 +355,22 @@ function renderTaskList(containerId, tasks, type) {
             currentSubject = task.subject;
             html += `<div class="subject-header">${escapeHtml(currentSubject)}</div>`;
         }
-
-        let opacityStyle = task.completed ? 'opacity: 0.6; filter: grayscale(0.5);' : '';
+        
+        const hasNote = appData.notes[task.id] && appData.notes[task.id].trim() !== '';
+        
+        let checkedAttr = task.completed ? 'checked' : '';
+        let opacityStyle = task.completed ? 'opacity: 0.5; filter: grayscale(1);' : '';
 
         html += `
-            <div class="task-item" data-id="${task.id}" data-type="${type}" data-index="${index}" style="${opacityStyle}">
-                <button class="task-check-btn ${task.completed ? 'checked' : ''}" onclick="toggleTaskComplete('${task.id}', '${type}', ${!task.completed})">
-                    <span class="check-icon">✓</span>
-                </button>
-                <span class="task-text" onclick="toggleTaskComplete('${task.id}', '${type}', ${!task.completed})" style="cursor:pointer; flex: 1; ${task.completed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(task.text)}</span>
+            <div class="task-item" draggable="true" data-id="${task.id}" data-type="${type}" data-index="${index}" style="${opacityStyle}">
+                <label class="task-checkbox">
+                    <input type="checkbox" ${checkedAttr} onchange="toggleTaskComplete(this, '${task.id}', '${type}')">
+                    <span class="checkmark"></span>
+                </label>
+                <span class="task-text" style="${task.completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(task.text)}</span>
                 <div class="task-actions">
-                    ${!task.completed ? `<button class="task-action-btn" onclick="focusPomo('${task.id}')" title="Bu konuya odaklan">🍅</button>` : ''}
+                    <button class="task-action-btn ${hasNote ? 'has-note' : ''}" onclick="openNoteModal('${task.id}', '${escapeHtml(task.subject || task.text)}')" title="Not Ekle/D├╝zenle">­şôØ</button>
+                    ${!task.completed ? `<button class="task-action-btn" onclick="focusPomo('${task.id}')" title="Bu konuya odaklan">­şıà</button>` : ''}
                 </div>
             </div>
         `;
@@ -393,26 +383,26 @@ function renderTaskList(containerId, tasks, type) {
     }
 
     container.innerHTML = html;
+    setupDragAndDrop(container, type);
 }
 
-function toggleTaskComplete(taskId, type, isComplete) {
+function toggleTaskComplete(cb, taskId, type) {
     const list = appData.days[selectedDay][type];
     const task = list.find(t => t.id === taskId);
     if (!task) return;
-
-    task.completed = isComplete;
+    
+    task.completed = cb.checked;
     task.completedAt = task.completed ? new Date().toISOString() : null;
-
-    if (task.completed) {
+    
+    if(task.completed) {
         addPoints(10);
         confetti(30);
         playSound('complete');
         checkDailyGoalCompletion();
-        recordHeatmap(task.text, true);
+        recordHeatmap();
         scheduleSpacedRepetition(task);
     } else {
         addPoints(-10);
-        recordHeatmap(task.text, false);
     }
 
     saveData();
@@ -428,11 +418,62 @@ function checkDailyGoalCompletion() {
     const req = Math.ceil(all.length * (appData.settings.goalPct / 100));
     if (doneCount >= req) {
         playSound('goal');
-        showToast(`🎯 Günlük hedefine ulaştın! (${doneCount}/${all.length})`, true);
+        showToast(`­şÄ» G├╝nl├╝k hedefine ula┼şt─▒n! (${doneCount}/${all.length})`, true);
     }
 }
 
+/* --- DRAG & DROP YAPISI (S├£R├£KLE BIRAK) --- */
+let draggedTaskHTML = null;
+let draggedTaskData = null;
 
+function setupDragAndDrop(container, type) {
+    const items = container.querySelectorAll('.task-item');
+    
+    items.forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            this.classList.add('dragging');
+            draggedTaskData = {
+                id: this.dataset.id,
+                type: this.dataset.type,
+                index: parseInt(this.dataset.index)
+            };
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        });
+
+        item.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            container.querySelectorAll('.task-item').forEach(el => el.classList.remove('drag-over'));
+        });
+
+        item.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+
+        item.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const dropIndex = parseInt(this.dataset.index);
+            const dragIndex = draggedTaskData.index;
+
+            if (dragIndex === dropIndex) return;
+
+            // Veriyi dizide yer de─şi┼ştirme algoritmas─▒
+            const list = appData.days[selectedDay][type];
+            const itemToMove = list.splice(dragIndex, 1)[0];
+            list.splice(dropIndex, 0, itemToMove);
+            
+            saveData();
+            renderToday(); // Yeniden ├ğiz
+        });
+    });
+}
 
 /* --- GAMIFICATION (PUAN, YAPRAK & ROZETLER) --- */
 function addPoints(pts) {
@@ -444,34 +485,34 @@ function checkBadges() {
     let newBadge = null;
     let earned = appData.badges;
 
-    // 1. İlk Görev "first_blood"
+    // 1. ─░lk G├Ârev "first_blood"
     if (!earned.includes('first_blood')) {
         let totalDone = 0;
         DAYS.forEach(d => {
-            totalDone += appData.days[d.key].tekrar.filter(t => t.completed).length;
-            totalDone += appData.days[d.key].yeniKonular.filter(t => t.completed).length;
+            totalDone += appData.days[d.key].tekrar.filter(t=>t.completed).length;
+            totalDone += appData.days[d.key].yeniKonular.filter(t=>t.completed).length;
         });
         if (totalDone >= 1) { earned.push('first_blood'); newBadge = 'first_blood'; }
     }
 
-    // 2. Gece Kuşu "night_owl"
+    // 2. Gece Ku┼şu "night_owl"
     if (!earned.includes('night_owl')) {
         const h = new Date().getHours();
         if (h >= 23 || h <= 3) { earned.push('night_owl'); newBadge = 'night_owl'; }
     }
 
-    // 3. Yarı Yol "half_way"
+    // 3. Yar─▒ Yol "half_way"
     if (!earned.includes('half_way')) {
         let allTasks = 0, doneTasks = 0;
         DAYS.forEach(d => {
             const arr = [...appData.days[d.key].tekrar, ...appData.days[d.key].yeniKonular];
             allTasks += arr.length;
-            doneTasks += arr.filter(t => t.completed).length;
+            doneTasks += arr.filter(t=>t.completed).length;
         });
         if (allTasks > 0 && (doneTasks / allTasks >= 0.5)) { earned.push('half_way'); newBadge = 'half_way'; }
     }
 
-    // Günlük seri hesabı
+    // G├╝nl├╝k seri hesab─▒
     updateStreakData();
 
     if (!earned.includes('streak_3') && appData.streak.current >= 3) { earned.push('streak_3'); newBadge = 'streak_3'; }
@@ -482,7 +523,7 @@ function checkBadges() {
     if (newBadge) {
         playSound('badge');
         confetti(100);
-        showToast(`🏆 Yeni Başarı: ${BADGES_DEFS[newBadge].name}`, true);
+        showToast(`­şÅå Yeni Ba┼şar─▒: ${BADGES_DEFS[newBadge].name}`, true);
         addPoints(50); // Rozet kazanana 50 puan bonus
     }
 }
@@ -490,7 +531,7 @@ function checkBadges() {
 function updateStreakData() {
     const todayStr = new Date().toISOString().split('T')[0];
     const s = appData.streak;
-
+    
     // Check if user did any tasks today
     let didTaskToday = false;
     DAYS.forEach(d => {
@@ -505,11 +546,11 @@ function updateStreakData() {
             // Check if yesterday
             let yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
             let yStr = yesterday.toISOString().split('T')[0];
-
+            
             if (s.lastDate === yStr) {
                 s.current += 1; // Seri devam ediyor
             } else {
-                s.current = 1; // Seri kırıldı, baştan
+                s.current = 1; // Seri k─▒r─▒ld─▒, ba┼ştan
             }
             s.lastDate = todayStr;
             updateHeaderStats();
@@ -523,7 +564,7 @@ function setupPomodoro() {
     const circle = document.getElementById('pomoProgress');
     const radius = circle.r.baseVal.value;
     const circumference = radius * 2 * Math.PI;
-
+    
     circle.style.strokeDasharray = `${circumference} ${circumference}`;
     circle.style.transition = 'stroke-dashoffset 1s linear';
 
@@ -537,7 +578,7 @@ function setupPomodoro() {
         const m = Math.floor(pomoTimeRemaining / 60);
         const s = pomoTimeRemaining % 60;
         timeDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        document.getElementById('miniTimer').innerHTML = `🍅 <span>${timeDisplay.textContent}</span>`;
+        document.getElementById('miniTimer').innerHTML = `­şıà <span>${timeDisplay.textContent}</span>`;
         // Circle calculation
         const offset = circumference - (pomoTimeRemaining / pomoTotalTime) * circumference;
         circle.style.strokeDashoffset = offset;
@@ -545,7 +586,7 @@ function setupPomodoro() {
 
     document.querySelectorAll('.pomo-mode').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (pomoIsRunning) return showToast("Zamanlayıcı çalışırken mod değiştiremezsiniz.");
+            if(pomoIsRunning) return showToast("Zamanlay─▒c─▒ ├ğal─▒┼ş─▒rken mod de─şi┼ştiremezsiniz.");
             document.querySelectorAll('.pomo-mode').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             pomoMode = btn.dataset.mode;
@@ -564,19 +605,19 @@ function setupPomodoro() {
             btnStart.textContent = "Devam Et";
             btnStart.classList.remove('running');
         } else {
-            // Başlat
+            // Ba┼şlat
             pomoIsRunning = true;
             btnStart.textContent = "Duraklat";
             btnStart.classList.add('running');
             pomoInterval = setInterval(() => {
-                if (pomoTimeRemaining > 0) {
+                if(pomoTimeRemaining > 0) {
                     pomoTimeRemaining--;
                     updateTimerVisuals();
                 } else {
                     // Pomodoro Bitti!
                     clearInterval(pomoInterval);
                     pomoIsRunning = false;
-                    btnStart.textContent = "Başlat";
+                    btnStart.textContent = "Ba┼şlat";
                     btnStart.classList.remove('running');
                     playBeep();
                     handlePomodoroComplete();
@@ -588,7 +629,7 @@ function setupPomodoro() {
     btnReset.addEventListener('click', () => {
         clearInterval(pomoInterval);
         pomoIsRunning = false;
-        btnStart.textContent = "Başlat";
+        btnStart.textContent = "Ba┼şlat";
         btnStart.classList.remove('running');
         const activeModeTime = parseInt(document.querySelector('.pomo-mode.active').dataset.time);
         setTime(activeModeTime);
@@ -600,26 +641,26 @@ function setupPomodoro() {
 function handlePomodoroComplete() {
     confetti(50);
     playSound('pomodoro');
-    showToast("✨ Süre Doldu! Odaklanma Başarılı.");
-
+    showToast("Ô£¿ S├╝re Doldu! Odaklanma Ba┼şar─▒l─▒.");
+    
     if (pomoMode === 'work') {
         appData.pomodoro.totalCompleted++;
         const mins = parseInt(document.querySelector('.pomo-mode[data-mode="work"]').dataset.time);
         appData.pomodoro.totalMins += mins;
-
+        
         // Puan
         addPoints(15);
-
-        // Görevi otomatik tamamlama opsiyonu
+        
+        // G├Ârevi otomatik tamamlama opsiyonu
         const select = document.getElementById('pomoTaskSelect');
         const taskId = select.value;
-        if (taskId) {
-            // Görevi today tabsından bulup bitir
+        if(taskId) {
+            // G├Ârevi today tabs─▒ndan bulup bitir
             const list = [...appData.days[selectedDay].tekrar, ...appData.days[selectedDay].yeniKonular];
-            const task = list.find(t => t.id === taskId);
-            if (task && !task.completed) {
-                appData.pomodoro.history.push(`${new Date().toLocaleTimeString('tr-TR')} - ${task.subject || ''} (${task.text}) çalışıldı.`);
-                if (confirm(`"${task.text}" konusunu tamamlandı olarak işaretleyelim mi?`)) {
+            const task = list.find(t=>t.id === taskId);
+            if(task && !task.completed) {
+                appData.pomodoro.history.push(`${new Date().toLocaleTimeString('tr-TR')} - ${task.subject || ''} (${task.text}) ├ğal─▒┼ş─▒ld─▒.`);
+                if(confirm(`"${task.text}" konusunu tamamland─▒ olarak i┼şaretleyelim mi?`)) {
                     task.completed = true;
                     task.completedAt = new Date().toISOString();
                 }
@@ -628,13 +669,13 @@ function handlePomodoroComplete() {
             appData.pomodoro.history.push(`${new Date().toLocaleTimeString('tr-TR')} - Serbest Pomodoro`);
         }
 
-        // Gamification Rozet Check (Pomo bazlı)
+        // Gamification Rozet Check (Pomo bazl─▒)
         let earned = appData.badges;
-        if (appData.pomodoro.totalCompleted >= 1 && !earned.includes('pomo_starter')) {
-            earned.push('pomo_starter'); showToast(`🏆 Yeni Rozet: Pomodoro Çaylağı!`, true); playBeep();
+        if(appData.pomodoro.totalCompleted >= 1 && !earned.includes('pomo_starter')) {
+            earned.push('pomo_starter'); showToast(`­şÅå Yeni Rozet: Pomodoro ├çayla─ş─▒!`, true); playBeep();
         }
-        if (appData.pomodoro.totalCompleted >= 10 && !earned.includes('pomo_master')) {
-            earned.push('pomo_master'); showToast(`🏆 Yeni Rozet: Odak Ustası!`, true); playBeep();
+        if(appData.pomodoro.totalCompleted >= 10 && !earned.includes('pomo_master')) {
+            earned.push('pomo_master'); showToast(`­şÅå Yeni Rozet: Odak Ustas─▒!`, true); playBeep();
         }
 
         saveData();
@@ -649,16 +690,16 @@ function renderPomoStats() {
 
     const histList = document.getElementById('pomoHistoryList');
     const histArr = appData.pomodoro?.history || [];
-    if (histArr.length > 0) {
+    if(histArr.length > 0) {
         histList.innerHTML = histArr.slice(-10).reverse().map(log => `<div class="pomo-h-item">${log}</div>`).join('');
     }
 }
 
 function updatePomoTaskSelect(dayData) {
     const select = document.getElementById('pomoTaskSelect');
-    select.innerHTML = '<option value="">-- Serbest Çalışma --</option>';
-
-    const tasks = [...(dayData.tekrar || []), ...(dayData.yeniKonular || [])].filter(t => !t.completed);
+    select.innerHTML = '<option value="">-- Serbest ├çal─▒┼şma --</option>';
+    
+    const tasks = [...(dayData.tekrar||[]), ...(dayData.yeniKonular||[])].filter(t=>!t.completed);
     tasks.forEach(t => {
         const title = t.subject ? `${t.subject} - ${t.text}` : t.text;
         select.innerHTML += `<option value="${t.id}">${title}</option>`;
@@ -669,11 +710,11 @@ function focusPomo(taskId) {
     document.getElementById('tabPomodoro').click();
     const select = document.getElementById('pomoTaskSelect');
     select.value = taskId;
-    // Otomatik modu çalışmaya al
+    // Otomatik modu ├ğal─▒┼şmaya al
     document.querySelector('.pomo-mode[data-mode="work"]').click();
 }
 
-/* --- YARDIMCI GÖRSELLEŞTİRMELER (OVERVIEW) --- */
+/* --- YARDIMCI G├ûRSELLE┼ŞT─░RMELER (OVERVIEW) --- */
 function renderWeeklyOverview() {
     const container = document.getElementById('weeklyOverview');
     const jsDay = new Date().getDay();
@@ -689,44 +730,116 @@ function renderWeeklyOverview() {
         const pct = total > 0 ? Math.round((done / total) * 100) : 0;
         const isToday = d.key === todayObj.key;
         const isActive = d.key === selectedDay;
-
-        let barClass = total === 0 ? 'none' : (done === total ? 'all-done' : 'partial');
+        
+        let barClass = total===0 ? 'none' : (done===total ? 'all-done' : 'partial');
 
         return `<div class="week-day-card ${isToday ? 'is-today' : ''} ${isActive ? 'active' : ''}" data-day="${d.key}" onclick="document.querySelector('.day-btn[data-day=\\'${d.key}\\']').click()">
             <div class="day-name">${d.short}</div>
-            <div class="day-progress ${barClass}">${total > 0 ? done + '/' + total : '–'}</div>
+            <div class="day-progress ${barClass}">${total > 0 ? done + '/' + total : 'ÔÇô'}</div>
             <div class="day-bar"><div class="day-bar-fill" style="width:${pct}%"></div></div>
         </div>`;
     }).join('');
 }
 
 
+/* --- NOT DEFTER─░ MOD├£L├£ --- */
+function openNoteModal(taskId, title) {
+    currentNoteTargetId = taskId;
+    document.getElementById('noteModalSubject').textContent = title;
+    document.getElementById('noteModalText').value = appData.notes[taskId] || '';
+    document.getElementById('noteModalOverlay').classList.add('show');
+}
+
+let currentNoteTargetId = null;
+
+function renderNotes() {
+    const container = document.getElementById('notesGrid');
+    const filters = document.getElementById('notesFilters');
+    
+    let allTasksWithNotes = [];
+    const subjects = new Set();
+
+    DAYS.forEach(d => {
+        const dayData = appData.days[d.key];
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            (dayData[type] || []).forEach(t => {
+                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
+                    allTasksWithNotes.push({...t, note: appData.notes[t.id]});
+                    if(t.subject) subjects.add(t.subject);
+                }
+            });
+        });
+    });
+
+    if (allTasksWithNotes.length === 0) {
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><span class="empty-icon">­şôô</span><p>Hen├╝z al─▒nm─▒┼ş bir ders notu yok. Konular─▒n yan─▒ndaki ­şôØ ikonuna t─▒klayarak not alabilirsiniz.</p></div>`;
+        filters.style.display = 'none';
+        return;
+    }
+
+    filters.style.display = 'flex';
+    // Update Filter Buttons (Keep "all" but update subjects)
+    filters.innerHTML = `<button class="filter-btn active" data-subject="all" onclick="filterNotes('all', this)">T├╝m├╝</button>` + 
+                        Array.from(subjects).map(s => `<button class="filter-btn" data-subject="${s}" onclick="filterNotes('${s}', this)">${s}</button>`).join('');
+
+    renderNotesItems(allTasksWithNotes, container);
+}
+
+function filterNotes(subjPattern, btnEl) {
+    document.querySelectorAll('#notesFilters .filter-btn').forEach(b=>b.classList.remove('active'));
+    btnEl.classList.add('active');
+    
+    let allTasksWithNotes = [];
+    DAYS.forEach(d => {
+        const dayData = appData.days[d.key];
+        ['tekrar', 'yeniKonular'].forEach(type => {
+            (dayData[type] || []).forEach(t => {
+                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
+                    if(subjPattern === 'all' || t.subject === subjPattern) {
+                        allTasksWithNotes.push({...t, note: appData.notes[t.id]});
+                    }
+                }
+            });
+        });
+    });
+    
+    renderNotesItems(allTasksWithNotes, document.getElementById('notesGrid'));
+}
+
+function renderNotesItems(items, container) {
+    container.innerHTML = items.map(t => `
+        <div class="note-card" onclick="openNoteModal('${t.id}', '${escapeHtml(t.subject || t.text)}')">
+            <div class="note-subj">${t.subject ? escapeHtml(t.subject) : 'Genel'}</div>
+            <div class="note-task">${escapeHtml(t.text)}</div>
+            <div class="note-excerpt">${escapeHtml(t.note)}</div>
+        </div>
+    `).join('');
+}
 
 
-
-/* --- İSTATİSTİK & DASHBOARD --- */
+/* --- ─░STAT─░ST─░K & DASHBOARD --- */
 function renderStats() {
     // 1. Seriler ve Puanlar
     document.getElementById('dashStreak').textContent = appData.streak?.current || 0;
-
-    // 2. Tamamlama Oranı (Donut)
+    
+    // 2. Tamamlama Oran─▒ (Donut)
     let totalItems = 0, totalDone = 0;
     DAYS.forEach(d => {
         ['tekrar', 'yeniKonular'].forEach(type => {
             totalItems += (appData.days[d.key][type] || []).length;
-            totalDone += (appData.days[d.key][type] || []).filter(t => t.completed).length;
+            totalDone += (appData.days[d.key][type] || []).filter(t=>t.completed).length;
         });
     });
-    const pct = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
+    const pct = totalItems > 0 ? Math.round((totalDone/totalItems)*100) : 0;
     document.getElementById('dashCompletionText').textContent = pct + '%';
     document.getElementById('dashCompletionDonut').style.strokeDasharray = `${pct}, 100`;
 
-    // 3. Rozet Önizleme
+    // 3. Rozet ├ûnizleme
     const previewContainer = document.getElementById('badgesPreview');
     previewContainer.innerHTML = '';
-
+    
     const badgeKeys = Object.keys(BADGES_DEFS);
-    // Rastgele veya ilk 4 rozeti göster
+    // Rastgele veya ilk 4 rozeti g├Âster
     badgeKeys.slice(0, 4).forEach(bKey => {
         const isUnlocked = appData.badges.includes(bKey);
         previewContainer.innerHTML += `<div class="mini-badge ${isUnlocked ? 'unlocked' : ''}" title="${BADGES_DEFS[bKey].name}"> ${BADGES_DEFS[bKey].icon}</div>`;
@@ -751,19 +864,34 @@ function populateFullBadges() {
 
 /* --- MODALLAR --- */
 function setupModals() {
+    // Note Modal
+    const noteModal = document.getElementById('noteModalOverlay');
+    document.getElementById('btnCloseNote').addEventListener('click', () => noteModal.classList.remove('show'));
+    document.getElementById('btnSaveNote').addEventListener('click', () => {
+        const text = document.getElementById('noteModalText').value;
+        if(text.trim() === '') delete appData.notes[currentNoteTargetId];
+        else appData.notes[currentNoteTargetId] = text;
+        saveData();
+        
+        if(appData.notes[currentNoteTargetId] && !appData.badges.includes('note_taker')) {
+            appData.badges.push('note_taker');
+            showToast("­şÅå Yeni Rozet: K├ótip", true); playBeep();
+        }
+        
+        noteModal.classList.remove('show');
+        showToast("Not kaydedildi ­şôØ");
+        renderToday();
+        if(document.querySelector('.tab-btn[data-tab="notes"]').classList.contains('active')) renderNotes();
+    });
 
     // Badges Modal
     const badgesModal = document.getElementById('badgesModalOverlay');
     const openBadges = () => { populateFullBadges(); badgesModal.classList.add('show'); };
-
+    
     document.getElementById('btnCloseBadges').addEventListener('click', () => badgesModal.classList.remove('show'));
     document.getElementById('headerStreakBadge').addEventListener('click', openBadges);
     document.getElementById('headerPointsBadge').addEventListener('click', openBadges);
     document.getElementById('btnShowAllBadges').addEventListener('click', openBadges);
-
-    // Heatmap Modal
-    const heatmapModal = document.getElementById('heatmapModalOverlay');
-    document.getElementById('btnCloseHeatmap').addEventListener('click', () => heatmapModal.classList.remove('show'));
 }
 
 
@@ -774,10 +902,10 @@ function setupSettings() {
 
     document.getElementById('btnSaveGoal').addEventListener('click', () => {
         const val = parseInt(inputGoal.value);
-        if (val >= 1 && val <= 100) {
+        if(val >= 1 && val <= 100) {
             appData.settings.goalPct = val;
             saveData();
-            showToast("Hedef güncellendi.");
+            showToast("Hedef g├╝ncellendi.");
             renderToday(); // update UI Goal display
         }
     });
@@ -795,25 +923,25 @@ function setupSettings() {
 
     document.getElementById('importFileInput').addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if(!file) return;
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const parsed = JSON.parse(event.target.result);
-                if (parsed && parsed.days) {
+                if(parsed && parsed.days) {
                     appData = parsed;
                     saveData();
-                    showToast("Yedek başarıyla geri yüklendi! Sayfa yenileniyor...");
+                    showToast("Yedek ba┼şar─▒yla geri y├╝klendi! Sayfa yenileniyor...");
                     setTimeout(() => location.reload(), 1500);
-                } else { alert("Geçersiz yedek dosyası!"); }
-            } catch (err) { alert("Dosya okuma hatası!"); }
+                } else { alert("Ge├ğersiz yedek dosyas─▒!"); }
+            } catch(err) { alert("Dosya okuma hatas─▒!"); }
         };
         reader.readAsText(file);
     });
 
     document.getElementById('btnHardReset').addEventListener('click', () => {
-        if (confirm("DİKKAT! Tüm verileriniz kalıcı olarak silinecek. Emin misiniz?")) {
-            if (confirm("Son Kararın mı? (İstersen önce üstten yedeğini al)")) {
+        if(confirm("D─░KKAT! T├╝m verileriniz kal─▒c─▒ olarak silinecek. Emin misiniz?")) {
+            if(confirm("Son Karar─▒n m─▒? (─░stersen ├Ânce ├╝stten yede─şini al)")) {
                 localStorage.removeItem(STORAGE_KEY);
                 localStorage.removeItem(HISTORY_KEY);
                 location.reload();
@@ -822,7 +950,7 @@ function setupSettings() {
     });
 }
 
-/* --- BASİT CONFETTİ ANİMASYONU --- */
+/* --- BAS─░T CONFETT─░ AN─░MASYONU --- */
 function confetti(amount = 50) {
     const canvas = document.getElementById('confetti');
     const ctx = canvas.getContext('2d');
@@ -832,7 +960,7 @@ function confetti(amount = 50) {
     const particles = [];
     const colors = ['#f85149', '#3fb950', '#58a6ff', '#bc8cff', '#fbbf24'];
 
-    for (let i = 0; i < amount; i++) {
+    for(let i=0; i<amount; i++) {
         particles.push({
             x: canvas.width / 2, y: canvas.height / 2 + 100,
             r: Math.random() * 6 + 2,
@@ -844,10 +972,10 @@ function confetti(amount = 50) {
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0,0, canvas.width, canvas.height);
         let active = false;
         particles.forEach(p => {
-            if (p.y < canvas.height) active = true;
+            if(p.y < canvas.height) active = true;
             ctx.beginPath();
             ctx.lineWidth = p.r;
             ctx.strokeStyle = p.color;
@@ -857,13 +985,13 @@ function confetti(amount = 50) {
             p.x += p.dx; p.y += p.dy; p.dy += 0.2; // gravity
             p.tilt += 0.1; // spin
         });
-        if (active) requestAnimationFrame(draw);
-        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if(active) requestAnimationFrame(draw);
+        else ctx.clearRect(0,0, canvas.width, canvas.height);
     }
     draw();
 }
 
-/* --- HAFTALIK PROGRAM GİRİŞİ (MEVCUT MANTIK) --- */
+/* --- HAFTALIK PROGRAM G─░R─░┼Ş─░ (MEVCUT MANTIK) --- */
 function getCurrentWeekLabel() {
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -877,22 +1005,22 @@ function buildWeeklyForm() {
     DAYS.forEach(day => {
         const tItems = appData.days[day.key].tekrar || [];
         const yItems = appData.days[day.key].yeniKonular || [];
-
-        if (tItems.length > 0) {
+        
+        if(tItems.length > 0) {
             tekrarLines.push(day.label);
             let s = null;
             tItems.forEach(i => {
-                if (i.subject && i.subject !== s) { s = i.subject; tekrarLines.push(s); }
+                if(i.subject && i.subject !== s) { s=i.subject; tekrarLines.push(s); }
                 tekrarLines.push('-' + i.text);
             });
             tekrarLines.push('');
         }
-
-        if (yItems.length > 0) {
+        
+        if(yItems.length > 0) {
             yeniLines.push(day.label);
             let s = null;
             yItems.forEach(i => {
-                if (i.subject && i.subject !== s) { s = i.subject; yeniLines.push(s); }
+                if(i.subject && i.subject !== s) { s=i.subject; yeniLines.push(s); }
                 yeniLines.push('-' + i.text);
             });
             yeniLines.push('');
@@ -918,7 +1046,7 @@ function buildWeeklyForm() {
 function setupAutoSaveDrafts() {
     const yeniEl = document.getElementById('inputBulkYeni');
     const tekrarEl = document.getElementById('inputBulkTekrar');
-
+    
     let saveTimeout = null;
     const autoSave = () => {
         clearTimeout(saveTimeout);
@@ -952,12 +1080,12 @@ function setupFormActions() {
 
         saveData();
         renderToday();
-        showToast('Program başarıyla kaydedildi! 🎉');
+        showToast('Program ba┼şar─▒yla kaydedildi! ­şÄë');
         document.getElementById('tabToday').click();
     });
 
     document.getElementById('btnClear').addEventListener('click', () => {
-        if (confirm('Mevcut haftanın TÜM programını silmek istediğine emin misin?')) {
+        if(confirm('Mevcut haftan─▒n T├£M program─▒n─▒ silmek istedi─şine emin misin?')) {
             document.getElementById('inputBulkTekrar').value = '';
             document.getElementById('inputBulkYeni').value = '';
             DAYS.forEach(d => { appData.days[d.key] = { tekrar: [], yeniKonular: [] }; });
@@ -967,8 +1095,8 @@ function setupFormActions() {
     });
 
     document.getElementById('btnResetWeek').addEventListener('click', () => {
-        if (!confirm('Yeni haftaya geçilecek:\n\n✅ Mevcut hafta arşivlenecek\n🔄 Tamamlanan konular sıfırlanacak\n📋 Program yapısı korunacak\n\nDevam?')) return;
-
+        if (!confirm('Yeni haftaya ge├ğilecek:\n\nÔ£à Mevcut hafta ar┼şivlenecek\n­şöä Tamamlanan konular s─▒f─▒rlanacak\n­şôï Program yap─▒s─▒ korunacak\n\nDevam?')) return;
+        
         // Reset completions
         DAYS.forEach(d => {
             const dd = appData.days[d.key];
@@ -976,11 +1104,11 @@ function setupFormActions() {
                 (dd[type] || []).forEach(t => { t.completed = false; t.completedAt = null; });
             });
         });
-
+        
         appData.weekLabel = getCurrentWeekLabel();
         saveData();
         renderToday();
-        showToast('Yeni hafta başlatıldı! Başarılar 🚀');
+        showToast('Yeni hafta ba┼şlat─▒ld─▒! Ba┼şar─▒lar ­şÜÇ');
     });
 }
 
@@ -1006,8 +1134,8 @@ function parseBulkText(text) {
         if (detectedDay) { currentDay = detectedDay; currentSubject = null; continue; }
         if (!currentDay) continue;
 
-        const topicMatch = trimmed.match(/^[-*•]\s*(.*)/);
-        if (topicMatch) { result[currentDay].push({ subject: currentSubject, text: topicMatch[1].trim() }); }
+        const topicMatch = trimmed.match(/^[-*ÔÇó]\s*(.*)/);
+        if (topicMatch) { result[currentDay].push({ subject: currentSubject, text: topicMatch[1].trim() }); } 
         else { currentSubject = trimmed; }
     }
     return result;
@@ -1021,23 +1149,24 @@ function mapToTasks(parsed, oldItems) {
 }
 
 /* ========================================
-   YENI MODÜLLER
+   YENI MOD├£LLER
    ======================================== */
 
 const EXAM_SUBJECTS = [
-    { key: 'turkce', label: 'Türkçe', maxQ: 30 },
-    { key: 'matematik', label: 'Matematik', maxQ: 30 },
+    { key: 'turkce', label: 'T├╝rk├ğe', maxQ: 40 },
+    { key: 'matematik', label: 'Matematik', maxQ: 40 },
     { key: 'tarih', label: 'Tarih', maxQ: 27 },
-    { key: 'cografya', label: 'Coğrafya', maxQ: 18 },
-    { key: 'vatandaslik', label: 'Vatandaşlık', maxQ: 9 },
-    { key: 'guncel', label: 'Güncel Bilgiler', maxQ: 6 }
+    { key: 'cografya', label: 'Co─şrafya', maxQ: 17 },
+    { key: 'vatandaslik', label: 'Vatanda┼şl─▒k', maxQ: 15 },
+    { key: 'anayasa', label: 'Anayasa', maxQ: 5 },
+    { key: 'egitim', label: 'E─şitim Bil.', maxQ: 16 }
 ];
 
 /* --- 1. ARALIKLI TEKRAR (SPACED REPETITION) --- */
-const SR_INTERVALS = [1, 3, 7, 21]; // gün
+const SR_INTERVALS = [1, 3, 7, 21]; // g├╝n
 
 function scheduleSpacedRepetition(task) {
-    // Zaten planlanmış mı kontrol et
+    // Zaten planlanm─▒┼ş m─▒ kontrol et
     const exists = appData.spacedRep.find(s => s.taskId === task.id && !s.done);
     if (exists) return;
 
@@ -1076,9 +1205,9 @@ function renderSpacedRepetition() {
             <div class="sr-info">
                 <span class="sr-subject">${escapeHtml(item.subject)}</span>
                 <span class="sr-text">${escapeHtml(item.text)}</span>
-                <span class="sr-interval">${item.interval} gün aralıklı tekrar</span>
+                <span class="sr-interval">${item.interval} g├╝n aral─▒kl─▒ tekrar</span>
             </div>
-            <button class="btn btn-sm btn-success" onclick="markSrDone('${item.id}')">✓ Tekrar Ettim</button>
+            <button class="btn btn-sm btn-success" onclick="markSrDone('${item.id}')">Ô£ô Tekrar Ettim</button>
         </div>
     `).join('');
 }
@@ -1088,31 +1217,14 @@ function markSrDone(srId) {
     if (item) { item.done = true; addPoints(5); }
     saveData();
     renderSpacedRepetition();
-    showToast('Tekrar tamamlandı! 🥳');
+    showToast('Tekrar tamamland─▒! ­şğá');
 }
 
-/* --- 2. ISI HARİTASI (HEATMAP) --- */
-function recordHeatmap(taskText = "", isAdd = true) {
+/* --- 2. ISI HAR─░TASI (HEATMAP) --- */
+function recordHeatmap() {
     const todayStr = new Date().toISOString().split('T')[0];
-
-    // Eski JSON yapısına sahipse (sayı tutuluyorsa) array'e çevir
-    if (typeof appData.heatmap[todayStr] === 'number') {
-        const count = appData.heatmap[todayStr];
-        appData.heatmap[todayStr] = Array(count).fill("Toplu görev");
-    }
-
-    if (!appData.heatmap[todayStr]) appData.heatmap[todayStr] = [];
-
-    if (isAdd) {
-        if (taskText) appData.heatmap[todayStr].push(taskText);
-    } else {
-        // Çıkarma işlemi
-        if (taskText) {
-            const idx = appData.heatmap[todayStr].indexOf(taskText);
-            if (idx > -1) appData.heatmap[todayStr].splice(idx, 1);
-        }
-    }
-
+    if (!appData.heatmap[todayStr]) appData.heatmap[todayStr] = 0;
+    appData.heatmap[todayStr]++;
     saveData();
 }
 
@@ -1121,109 +1233,21 @@ function renderHeatmap() {
     if (!container) return;
     const today = new Date();
     let html = '';
-
-    // Max val bulmak için (hem eski sayı hem yeni array formatını destekler)
-    let maxVal = 1;
-    Object.values(appData.heatmap || {}).forEach(v => {
-        const count = Array.isArray(v) ? v.length : (typeof v === 'number' ? v : 0);
-        if (count > maxVal) maxVal = count;
-    });
+    const maxVal = Math.max(1, ...Object.values(appData.heatmap || {}));
 
     for (let i = 89; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split('T')[0];
-        const rawVal = (appData.heatmap || {})[dateStr] || 0;
-
-        let count = 0;
-        if (Array.isArray(rawVal)) {
-            count = rawVal.length;
-        } else if (typeof rawVal === 'number') {
-            count = rawVal;
-        }
-
-        const opacity = count === 0 ? 0.06 : Math.max(0.2, count / maxVal);
-
-        html += `
-            <div class="hm-cell-wrapper" title="${dateStr}">
-                <div class="hm-cell" style="opacity:${opacity}" onclick="openHeatmapModal('${dateStr}')"></div>
-            </div>
-        `;
+        const val = (appData.heatmap || {})[dateStr] || 0;
+        const opacity = val === 0 ? 0.06 : Math.max(0.2, val / maxVal);
+        const title = `${dateStr}: ${val} g├Ârev`;
+        html += `<div class="hm-cell" style="opacity:${opacity}" title="${title}"></div>`;
     }
     container.innerHTML = html;
 }
 
-window.openHeatmapModal = function (dateStr) {
-    const rawVal = (appData.heatmap || {})[dateStr] || 0;
-    const content = document.getElementById('heatmapModalContent');
-    const title = document.getElementById('heatmapModalTitle');
-
-    title.textContent = `📅 ${dateStr} Detayı`;
-
-    let count = 0;
-    let tasksList = [];
-
-    if (Array.isArray(rawVal)) {
-        tasksList = [...rawVal];
-        count = tasksList.length;
-    } else if (typeof rawVal === 'number') {
-        count = rawVal;
-    }
-
-    // Eski kayıtlarda detay yoksa, appData.days veya geçmiş üzerinden bulmaya çalışalım
-    if (count > 0 && tasksList.length === 0) {
-        // Mevcut haftadaki görevleri tara
-        DAYS.forEach(d => {
-            ['tekrar', 'yeniKonular'].forEach(type => {
-                const arr = appData.days[d.key][type] || [];
-                arr.forEach(t => {
-                    if (t.completed && t.completedAt && t.completedAt.startsWith(dateStr)) {
-                        const taskName = t.subject ? `${t.subject} - ${t.text}` : t.text;
-                        if (!tasksList.includes(taskName)) tasksList.push(taskName);
-                    }
-                });
-            });
-        });
-
-        // Geçmiş arşivi varsa tara (tam garanti olsun diye)
-        if (tasksList.length === 0) {
-            try {
-                const historyRaw = localStorage.getItem(HISTORY_KEY);
-                if (historyRaw) {
-                    const history = JSON.parse(historyRaw);
-                    history.forEach(pastWeek => {
-                        Object.keys(pastWeek.days || {}).forEach(dayKey => {
-                            ['tekrar', 'yeniKonular'].forEach(type => {
-                                const arr = pastWeek.days[dayKey][type] || [];
-                                arr.forEach(t => {
-                                    if (t.completed && t.completedAt && t.completedAt.startsWith(dateStr)) {
-                                        const taskName = t.subject ? `${t.subject} - ${t.text}` : t.text;
-                                        if (!tasksList.includes(taskName)) tasksList.push(taskName);
-                                    }
-                                });
-                            });
-                        });
-                    });
-                }
-            } catch (e) {
-                console.error("Heatmap geçmişi okunamadı", e);
-            }
-        }
-    }
-
-    if (tasksList.length > 0) {
-        const tasksHtml = tasksList.map(t => `<li>${escapeHtml(t)}</li>`).join('');
-        content.innerHTML = `<ul class="hm-modal-list">${tasksHtml}</ul>`;
-    } else if (count > 0) {
-        content.innerHTML = `<ul class="hm-modal-list"><li>${count} adet görev tamamlanmış (Detaylı kayıt yok)</li></ul>`;
-    } else {
-        content.innerHTML = `<div class="empty-state"><span class="empty-icon">⏳</span><p>Bu tarihte kaydedilmiş görev yok.</p></div>`;
-    }
-
-    document.getElementById('heatmapModalOverlay').classList.add('show');
-};
-
-/* --- 3. DERS BAZLI ANALİZ --- */
+/* --- 3. DERS BAZLI ANAL─░Z --- */
 function renderSubjectAnalysis() {
     const container = document.getElementById('subjectBars');
     if (!container) return;
@@ -1232,7 +1256,7 @@ function renderSubjectAnalysis() {
     DAYS.forEach(d => {
         ['tekrar', 'yeniKonular'].forEach(type => {
             (appData.days[d.key][type] || []).forEach(t => {
-                const subj = t.subject || 'Diğer';
+                const subj = t.subject || 'Di─şer';
                 if (!subjects[subj]) subjects[subj] = { total: 0, done: 0 };
                 subjects[subj].total++;
                 if (t.completed) subjects[subj].done++;
@@ -1242,7 +1266,7 @@ function renderSubjectAnalysis() {
 
     const entries = Object.entries(subjects);
     if (entries.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Henüz program girilmedi.</p>';
+        container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem">Hen├╝z program girilmedi.</p>';
         return;
     }
 
@@ -1262,21 +1286,21 @@ function renderSubjectAnalysis() {
     }).join('');
 }
 
-/* --- 4. DENEME SINAVI TAKİBİ --- */
+/* --- 4. DENEME SINAVI TAK─░B─░ --- */
 function setupExams() {
-    // Tarih alanını bugünle doldur
+    // Tarih alan─▒n─▒ bug├╝nle doldur
     const dateInput = document.getElementById('examDate');
     if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    // Ders giriş alanlarını oluştur
+    // Ders giri┼ş alanlar─▒n─▒ olu┼ştur
     const grid = document.getElementById('examSubjectsGrid');
     if (grid) {
         grid.innerHTML = EXAM_SUBJECTS.map(s => `
             <div class="exam-subj-input">
                 <label>${s.label}</label>
                 <div class="exam-net-row">
-                    <input type="number" id="examD_${s.key}" placeholder="Doğru" min="0" max="${s.maxQ}">
-                    <input type="number" id="examY_${s.key}" placeholder="Yanlış" min="0" max="${s.maxQ}">
+                    <input type="number" id="examD_${s.key}" placeholder="Do─şru" min="0" max="${s.maxQ}">
+                    <input type="number" id="examY_${s.key}" placeholder="Yanl─▒┼ş" min="0" max="${s.maxQ}">
                     <span class="exam-net-val" id="examN_${s.key}">0 net</span>
                 </div>
             </div>
@@ -1301,46 +1325,27 @@ function setupExams() {
     // Kaydet
     document.getElementById('btnSaveExam')?.addEventListener('click', () => {
         const date = document.getElementById('examDate').value;
-        const name = document.getElementById('examName').value || 'İsimsiz Deneme';
-        if (!date) return showToast('Lütfen tarih girin.');
+        const name = document.getElementById('examName').value || '─░simsiz Deneme';
+        if (!date) return showToast('L├╝tfen tarih girin.');
 
         const results = {};
         let totalNet = 0;
-        let gyNet = 0;
-        let gkNet = 0;
-
         EXAM_SUBJECTS.forEach(s => {
             const d = parseFloat(document.getElementById(`examD_${s.key}`).value) || 0;
             const y = parseFloat(document.getElementById(`examY_${s.key}`).value) || 0;
             const net = Math.max(0, d - (y * 0.25));
             results[s.key] = { dogru: d, yanlis: y, net: parseFloat(net.toFixed(1)) };
             totalNet += net;
-
-            if (s.key === 'turkce' || s.key === 'matematik') {
-                gyNet += net;
-            } else {
-                gkNet += net;
-            }
         });
-
-        // KPSS P93 (Ön Lisans) Puan Tahminleri
-        const p2024 = Math.min(100, totalNet === 0 ? 0 : 50.5 + (gyNet * 0.43) + (gkNet * 0.40));
-        const p2022 = Math.min(100, totalNet === 0 ? 0 : 51.5 + (gyNet * 0.46) + (gkNet * 0.38));
-        const p2020 = Math.min(100, totalNet === 0 ? 0 : 49.0 + (gyNet * 0.45) + (gkNet * 0.42));
 
         appData.exams.push({
             id: genId(), date, name,
-            results, totalNet: parseFloat(totalNet.toFixed(1)),
-            scores: {
-                y2024: parseFloat(p2024.toFixed(3)),
-                y2022: parseFloat(p2022.toFixed(3)),
-                y2020: parseFloat(p2020.toFixed(3))
-            }
+            results, totalNet: parseFloat(totalNet.toFixed(1))
         });
 
         saveData();
         renderExams();
-        showToast('Deneme sonucu kaydedildi! 📊');
+        showToast('Deneme sonucu kaydedildi! ­şôè');
         playSound('complete');
 
         // Formu temizle
@@ -1354,31 +1359,24 @@ function setupExams() {
 }
 
 function renderExams() {
-    const exams = (appData.exams || [])
-        .filter(e => e && e.id)
-        .sort((a, b) => {
-            const d1 = a.date || "1970-01-01";
-            const d2 = b.date || "1970-01-01";
-            return d1.localeCompare(d2);
-        });
+    const exams = (appData.exams || []).sort((a, b) => a.date.localeCompare(b.date));
     const cardsEl = document.getElementById('examCards');
     const chartEl = document.getElementById('examChartArea');
 
     if (exams.length === 0) {
-        if (cardsEl) cardsEl.innerHTML = '<div class="empty-state"><span class="empty-icon">📝</span><p>Henüz deneme sonucu eklenmedi.</p></div>';
+        if (cardsEl) cardsEl.innerHTML = '<div class="empty-state"><span class="empty-icon">­şôØ</span><p>Hen├╝z deneme sonucu eklenmedi.</p></div>';
         if (chartEl) chartEl.innerHTML = '';
         return;
     }
 
-    // Gelişim Çizgi Grafiği (SVG)
+    // Geli┼şim ├çizgi Grafi─şi (SVG)
     if (chartEl && exams.length >= 2) {
         const w = 600, h = 200, pad = 40;
-        const validExams = exams.filter(e => e.totalNet !== undefined && e.totalNet !== null);
-        const maxNet = Math.max(...validExams.map(e => e.totalNet), 1);
-        const points = validExams.map((e, i) => {
-            const x = pad + (i / (validExams.length - 1)) * (w - pad * 2);
+        const maxNet = Math.max(...exams.map(e => e.totalNet), 1);
+        const points = exams.map((e, i) => {
+            const x = pad + (i / (exams.length - 1)) * (w - pad * 2);
             const y = h - pad - ((e.totalNet / maxNet) * (h - pad * 2));
-            return { x, y, net: e.totalNet, name: e.name || 'İsimsiz' };
+            return { x, y, net: e.totalNet, name: e.name };
         });
         const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
 
@@ -1393,18 +1391,16 @@ function renderExams() {
         `;
     }
 
-    // Sonuç Kartları (Son 5)
+    // Sonu├ğ Kartlar─▒ (Son 5)
     if (cardsEl) {
         cardsEl.innerHTML = exams.slice(-5).reverse().map((exam, i) => {
             const prevExam = exams.length > 1 && i === 0 ? exams[exams.length - 2] : null;
-            const t1 = exam.totalNet || 0;
-            const t2 = prevExam ? (prevExam.totalNet || 0) : null;
-            const diff = prevExam ? (t1 - t2).toFixed(1) : null;
-            const diffStr = diff !== null ? (diff > 0 ? `<span class="exam-up">▲ +${diff}</span>` : diff < 0 ? `<span class="exam-down">▼ ${diff}</span>` : `<span class="exam-same">= 0</span>`) : '';
+            const diff = prevExam ? (exam.totalNet - prevExam.totalNet).toFixed(1) : null;
+            const diffStr = diff !== null ? (diff > 0 ? `<span class="exam-up">Ôû▓ +${diff}</span>` : diff < 0 ? `<span class="exam-down">Ôû╝ ${diff}</span>` : `<span class="exam-same">= 0</span>`) : '';
 
             const subjectCells = EXAM_SUBJECTS.map(s => {
-                const r = (exam.results || {})[s.key];
-                return r && r.net !== undefined ? `<td>${r.net.toFixed(1)}</td>` : `<td>-</td>`;
+                const r = exam.results[s.key];
+                return r ? `<td>${r.net.toFixed(1)}</td>` : `<td>-</td>`;
             }).join('');
 
             return `
@@ -1415,29 +1411,11 @@ function renderExams() {
                             <small>${exam.date}</small>
                         </div>
                         <div class="exam-total">
-                            <span class="exam-total-net">${(exam.totalNet || 0).toFixed(1)}</span>
+                            <span class="exam-total-net">${exam.totalNet.toFixed(1)}</span>
                             <small>Toplam Net</small>
                             ${diffStr}
                         </div>
                     </div>
-                    
-                    ${exam.scores ? `
-                    <div class="exam-scores-pill-group">
-                        <div class="score-pill current">
-                            <span class="score-year">2024 Puan:</span>
-                            <span class="score-val">${exam.scores.y2024.toFixed(3)}</span>
-                        </div>
-                        <div class="score-pill">
-                            <span class="score-year">2022 Puan:</span>
-                            <span class="score-val">${exam.scores.y2022.toFixed(3)}</span>
-                        </div>
-                        <div class="score-pill">
-                            <span class="score-year">2020 Puan:</span>
-                            <span class="score-val">${exam.scores.y2020.toFixed(3)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
-
                     <table class="exam-table">
                         <tr>${EXAM_SUBJECTS.map(s => `<th>${s.label}</th>`).join('')}</tr>
                         <tr>${subjectCells}</tr>
@@ -1448,7 +1426,7 @@ function renderExams() {
         }).join('');
     }
 
-    // Zayıf Ders Analizi
+    // Zay─▒f Ders Analizi
     analyzeWeakSubjects(exams);
 }
 
@@ -1463,23 +1441,18 @@ function analyzeWeakSubjects(exams) {
     const list = document.getElementById('weakSubjectsList');
     if (!box || !list || exams.length < 1) { box?.classList.add('hidden'); return; }
 
-    const validRecentExams = exams.filter(e => e && e.totalNet !== undefined && e.totalNet !== null);
-
-    // Son 3 denemenin ortalamasını al
-    const recent = validRecentExams.slice(-3);
+    // Son 3 denemenin ortalamas─▒n─▒ al
+    const recent = exams.slice(-3);
     const avgNets = {};
     EXAM_SUBJECTS.forEach(s => {
         let sum = 0, count = 0;
         recent.forEach(e => {
-            if (e.results && e.results[s.key] && e.results[s.key].net !== undefined) {
-                sum += e.results[s.key].net;
-                count++;
-            }
+            if (e.results[s.key]) { sum += e.results[s.key].net; count++; }
         });
         if (count > 0) avgNets[s.key] = { label: s.label, avg: sum / count, maxQ: s.maxQ, pct: ((sum / count) / s.maxQ) * 100 };
     });
 
-    // En düşük yüzdelileri bul
+    // En d├╝┼ş├╝k y├╝zdelileri bul
     const sorted = Object.values(avgNets).sort((a, b) => a.pct - b.pct);
     const weak = sorted.filter(s => s.pct < 50).slice(0, 3);
 
@@ -1488,20 +1461,20 @@ function analyzeWeakSubjects(exams) {
     box.classList.remove('hidden');
     list.innerHTML = weak.map(s => `
         <div class="weak-item">
-            <span class="weak-name">⚠️ ${s.label}</span>
+            <span class="weak-name">ÔÜá´©Å ${s.label}</span>
             <span class="weak-detail">Ort: ${s.avg.toFixed(1)} / ${s.maxQ} net (%${s.pct.toFixed(0)})</span>
             <div class="subj-bar-track"><div class="subj-bar-fill weak-fill" style="width:${s.pct}%"></div></div>
         </div>
     `).join('');
 }
 
-/* --- 5. BİLDİRİM SİSTEMİ --- */
+/* --- 5. B─░LD─░R─░M S─░STEM─░ --- */
 function setupNotifications() {
     const btn = document.getElementById('btnEnableNotif');
     const status = document.getElementById('notifStatus');
 
     if (!('Notification' in window)) {
-        if (status) status.textContent = 'Bu tarayıcı bildirimleri desteklemiyor.';
+        if (status) status.textContent = 'Bu taray─▒c─▒ bildirimleri desteklemiyor.';
         if (btn) btn.disabled = true;
         return;
     }
@@ -1512,12 +1485,12 @@ function setupNotifications() {
         const perm = await Notification.requestPermission();
         updateNotifStatus();
         if (perm === 'granted') {
-            showToast('Bildirimler açıldı! 🔔');
+            showToast('Bildirimler a├ğ─▒ld─▒! ­şöö');
             scheduleReminders();
         }
     });
 
-    // Eğer izin varsa hatırlatıcıları başlat
+    // E─şer izin varsa hat─▒rlat─▒c─▒lar─▒ ba┼şlat
     if (Notification.permission === 'granted') {
         scheduleReminders();
     }
@@ -1527,9 +1500,9 @@ function updateNotifStatus() {
     const status = document.getElementById('notifStatus');
     if (!status) return;
     const perm = Notification.permission;
-    if (perm === 'granted') status.innerHTML = '<span style="color:var(--accent-green)">✅ Bildirimler aktif</span>';
-    else if (perm === 'denied') status.innerHTML = '<span style="color:var(--accent-red)">❌ Bildirimler engellenmiş. Tarayıcı ayarlarından açın.</span>';
-    else status.innerHTML = '<span style="color:var(--text-muted)">Henüz izin verilmemiş.</span>';
+    if (perm === 'granted') status.innerHTML = '<span style="color:var(--accent-green)">Ô£à Bildirimler aktif</span>';
+    else if (perm === 'denied') status.innerHTML = '<span style="color:var(--accent-red)">ÔØî Bildirimler engellenmi┼ş. Taray─▒c─▒ ayarlar─▒ndan a├ğ─▒n.</span>';
+    else status.innerHTML = '<span style="color:var(--text-muted)">Hen├╝z izin verilmemi┼ş.</span>';
 }
 
 function scheduleReminders() {
@@ -1537,248 +1510,42 @@ function scheduleReminders() {
     setInterval(() => {
         const h = new Date().getHours();
 
-        // Sabah 9, Öğle 13, Akşam 19 hatırlatma
+        // Sabah 9, ├û─şle 13, Ak┼şam 19 hat─▒rlatma
         if (h === 9 || h === 13 || h === 19) {
             const dueReps = (appData.spacedRep || []).filter(s => s.reviewDate <= new Date().toISOString().split('T')[0] && !s.done);
             if (dueReps.length > 0) {
-                new Notification('🧠 Tekrar Zamanı!', { body: `${dueReps.length} konu tekrar bekliyor.`, icon: '🎓' });
+                new Notification('­şğá Tekrar Zaman─▒!', { body: `${dueReps.length} konu tekrar bekliyor.`, icon: '­şÄô' });
             }
 
-            // Bugün çalışma kontrolü
+            // Bug├╝n ├ğal─▒┼şma kontrol├╝
             const todayStr = new Date().toISOString().split('T')[0];
             if (!appData.heatmap[todayStr] && h >= 19) {
-                new Notification('📚 Bugün henüz çalışmadın!', { body: 'Hadi bir Pomodoro ile başla!', icon: '🍅' });
+                new Notification('­şôÜ Bug├╝n hen├╝z ├ğal─▒┼şmad─▒n!', { body: 'Hadi bir Pomodoro ile ba┼şla!', icon: '­şıà' });
             }
         }
     }, 60 * 60 * 1000); // Saatte bir kontrol
 }
 
-/* --- 6. RENDER STATS GÜNCELLEME (HEATMAP + DERS ANALİZİ EKLENDİ) --- */
+/* --- 6. RENDER STATS G├£NCELLEME (HEATMAP + DERS ANAL─░Z─░ EKLEND─░) --- */
 const _origRenderStats = typeof renderStats === 'function' ? renderStats : null;
-// renderStats fonksiyonunu override etmeden, onun çağrıldığı yerlerde ek render ekleyelim
-(function () {
+// renderStats fonksiyonunu override etmeden, onun ├ğa─şr─▒ld─▒─ş─▒ yerlerde ek render ekleyelim
+(function() {
     const origSetupTabs = setupTabs;
-    // renderStats çağrıldığında heatmap ve subject analysis da render edilsin
+    // renderStats ├ğa─şr─▒ld─▒─ş─▒nda heatmap ve subject analysis da render edilsin
     const origFn = window.renderStats;
     if (origFn) {
         window._baseRenderStats = origFn;
     }
 })();
 
-// renderStats içine hook ekle - mevcut renderStats'ın sonuna ek render
+// renderStats i├ğine hook ekle - mevcut renderStats'─▒n sonuna ek render
 const _patchedRenderStatsOnce = (() => {
     const origBody = renderStats;
-    renderStats = function () {
+    renderStats = function() {
         origBody.call(this);
         renderHeatmap();
         renderSubjectAnalysis();
-        renderAIAdvice();
     };
     return true;
 })();
 
-/* --- 7. GÜNLÜK MEYDAN OKUMA --- */
-const CHALLENGE_TEMPLATES = [
-    { text: 'Bugün {n} Pomodoro seansı tamamla', check: (n) => (appData.pomodoro?.totalCompleted || 0) >= n, args: [2, 3, 4] },
-    { text: 'Bugün en az {n} konu tamamla', check: (n) => getTodayCompletedCount() >= n, args: [3, 5, 7] },
-    { text: 'Bugün bir ders notu yaz', check: () => { const t = new Date().toISOString().split('T')[0]; return Object.keys(appData.notes || {}).length > 0; }, args: [null] },
-    { text: 'Bugün {n} farklı dersten çalış', check: (n) => getTodaySubjectCount() >= n, args: [2, 3] },
-    { text: 'Bugün tüm yeni konuları tamamla', check: () => { const d = appData.days[selectedDay]; return d.yeniKonular.length > 0 && d.yeniKonular.every(t => t.completed); }, args: [null] },
-    { text: 'Bugün tüm tekrar konularını tamamla', check: () => { const d = appData.days[selectedDay]; return d.tekrar.length > 0 && d.tekrar.every(t => t.completed); }, args: [null] },
-    { text: 'Bugün en az {n} aralıklı tekrar tamamla', check: (n) => (appData.spacedRep || []).filter(s => s.done).length >= n, args: [1, 2] },
-];
-
-function getTodayCompletedCount() {
-    const d = appData.days[selectedDay];
-    return [...d.yeniKonular, ...d.tekrar].filter(t => t.completed).length;
-}
-
-function getTodaySubjectCount() {
-    const d = appData.days[selectedDay];
-    const subjects = new Set();
-    [...d.yeniKonular, ...d.tekrar].filter(t => t.completed).forEach(t => { if (t.subject) subjects.add(t.subject); });
-    return subjects.size;
-}
-
-function setupDailyChallenge() {
-    const CHALLENGE_STORAGE = 'kpss_daily_challenge';
-    const todayStr = new Date().toISOString().split('T')[0];
-    let stored = null;
-
-    try { stored = JSON.parse(localStorage.getItem(CHALLENGE_STORAGE)); } catch (e) { }
-
-    if (!stored || stored.date !== todayStr) {
-        // Yeni gün = yeni meydan okuma seç
-        const template = CHALLENGE_TEMPLATES[Math.floor(Math.random() * CHALLENGE_TEMPLATES.length)];
-        const argOptions = template.args.filter(a => a !== null);
-        const arg = argOptions.length > 0 ? argOptions[Math.floor(Math.random() * argOptions.length)] : null;
-        const text = arg !== null ? template.text.replace('{n}', arg) : template.text;
-
-        stored = { date: todayStr, text, templateIdx: CHALLENGE_TEMPLATES.indexOf(template), arg, claimed: false };
-        localStorage.setItem(CHALLENGE_STORAGE, JSON.stringify(stored));
-    }
-
-    const dcText = document.getElementById('dcText');
-    const claimBtn = document.getElementById('btnClaimChallenge');
-
-    dcText.textContent = stored.text;
-
-    // Tamamlanmış mı kontrol et
-    function checkChallenge() {
-        const template = CHALLENGE_TEMPLATES[stored.templateIdx];
-        if (!template) return false;
-        try { return template.check(stored.arg); } catch (e) { return false; }
-    }
-
-    function updateChallengeUI() {
-        if (stored.claimed) {
-            claimBtn.textContent = '✓ Kazanıldı!';
-            claimBtn.disabled = true;
-            claimBtn.classList.add('dc-claimed');
-            document.getElementById('dailyChallengeBox').classList.add('dc-completed');
-        } else if (checkChallenge()) {
-            claimBtn.disabled = false;
-            claimBtn.textContent = '🎁 Ödülü Al!';
-        } else {
-            claimBtn.disabled = true;
-            claimBtn.textContent = 'Devam Et...';
-        }
-    }
-
-    updateChallengeUI();
-
-    // Her 5 saniyede kontrol et
-    setInterval(updateChallengeUI, 5000);
-
-    claimBtn.addEventListener('click', () => {
-        if (stored.claimed || !checkChallenge()) return;
-        stored.claimed = true;
-        localStorage.setItem(CHALLENGE_STORAGE, JSON.stringify(stored));
-        addPoints(25);
-        playSound('badge');
-        confetti(80);
-        showToast('🎉 Meydan okuma tamamlandı! +25 puan kazandın!', true);
-        updateChallengeUI();
-    });
-}
-
-function renderAIAdvice() {
-    const container = document.getElementById('aiAdviceContent');
-    if (!container) return;
-
-    const tips = [];
-    const exams = appData.exams || [];
-
-    // 1. Zayıf Dersler Analizi (Denemelerden)
-    const examAvgNets = {};
-    if (exams.length > 0) {
-        const recentExams = exams.slice(-3);
-        EXAM_SUBJECTS.forEach(s => {
-            let sum = 0, count = 0;
-            recentExams.forEach(e => {
-                if (e.results[s.key]) { sum += e.results[s.key].net; count++; }
-            });
-            if (count > 0) examAvgNets[s.key] = { name: s.label, pct: (sum / count) / s.maxQ * 100, avg: sum / count, maxQ: s.maxQ };
-        });
-
-        // En düşük deneme performansları
-        const examWeakSubjects = Object.values(examAvgNets).filter(s => s.pct <= 60).sort((a, b) => a.pct - b.pct);
-
-        if (examWeakSubjects.length > 0) {
-            const topWeak = examWeakSubjects[0];
-            tips.push({
-                icon: '🚨',
-                type: 'warning',
-                title: 'ACİL: ' + topWeak.name + ' Alarm Veriyor!',
-                text: `Son denemelerde <strong>${topWeak.name}</strong> dersindeki başarın <strong>%${topWeak.pct.toFixed(0)} (${topWeak.avg.toFixed(1)}/${topWeak.maxQ} net)</strong> seviyelerinde kalmış. 
-                <br><br>💡 <strong>Ne yapmalısın?</strong> 
-                <ul>
-                    <li>1. Bugün ${topWeak.name} dersinden geçmişte hata yaptığın konuları kapsayan 2 adet branş denemesi çöz.</li>
-                    <li>2. Çıkan yanlışlarını analiz edip "Aralıklı Tekrar" modülüne konu isimleriyle kaydet.</li>
-                </ul>`
-            });
-
-            if (examWeakSubjects.length > 1) {
-                const others = examWeakSubjects.slice(1, 3).map(s => s.name);
-                tips.push({
-                    icon: '📉',
-                    type: 'warning',
-                    title: 'Ağırlık Verilmesi Gereken Diğer Dersler',
-                    text: `Ayrıca <strong>${others.join(', ')}</strong> testlerinde de hedefin altındasın. Bu derslerin okuma/tekrar kısımlarını doğrudan Pomodoro sayacını çalıştırarak 25 dakikalık tam odak seanslarıyla erit.`
-                });
-            }
-
-        } else if (Object.keys(examAvgNets).length > 0) {
-            tips.push({
-                icon: '🔥',
-                type: 'success',
-                title: 'Harika Bir Form!',
-                text: `Tüm branşlarda %60 başarının üzerindesin! Aynı taktiklerle deneme çözümlerine her hafta devam et.`
-            });
-        }
-    } else {
-        tips.push({ icon: '📋', type: 'info', title: 'Veri Eksik', text: 'Henüz sisteme hiç deneme sonucu girmedin. Analiz yapılabilmesi için hafta sonu bir deneme çöz ve "Deneme Sınavı" sekmesinden kaydet.' });
-    }
-
-    // 2. Program ve Çalışma Serisi Analizi
-    let totalTasks = 0, doneTasks = 0;
-    DAYS.forEach(d => {
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            const arr = appData.days[d.key][type] || [];
-            totalTasks += arr.length;
-            doneTasks += arr.filter(t => t.completed).length;
-        });
-    });
-
-    const completionRate = totalTasks > 0 ? (doneTasks / totalTasks) : 0;
-    const streak = appData.streak?.current || 0;
-
-    if (streak === 0 && completionRate < 0.2) {
-        tips.push({
-            icon: '🛑',
-            type: 'warning',
-            title: 'Sürekliliğin Kırıldı',
-            text: `Bugün henüz dişe dokunur bir ilerleme kaydetmedin!<br><br>💡 <strong>Ne yapmalısın?</strong> Masaya otur, "Pomodoro" sekmesini aç ve en kısa/kolay görevden başlayarak sayacı başlat. Ertelemeyi kırmak için ilk 5 dakika kuralını uygula.`
-        });
-    } else if (streak >= 5) {
-        tips.push({
-            icon: '🚀',
-            type: 'success',
-            title: `${streak} Günlük Kesintisiz Çalışma!`,
-            text: `Müthiş bir momentum yakaladın. Rutinini bozma; çalışma saatlerinde uyku düzeninden taviz vermeden devam et.`
-        });
-    }
-
-    // 3. Genel Yönlendirme (Haftalık Hedefler)
-    if (totalTasks > 0 && completionRate >= 0.8) {
-        tips.push({
-            icon: '🏆',
-            type: 'info',
-            title: 'Haftalık Plan Tıkır Tıkır! ',
-            text: `Haftalık hedeflerinin %${Math.round(completionRate * 100)}'sini hallettin. Hafta sonu kendini mutlaka bir deneme sınavı ile ödüllendir/test et.`
-        });
-    } else if (totalTasks > 0 && new Date().getDay() === 0 && completionRate < 0.5) {
-        tips.push({
-            icon: '⚠️',
-            type: 'warning',
-            title: 'Hafta Bitiyor!',
-            text: `Bugün Pazar ve planının hala %${Math.round(completionRate * 100)}'si bitti. Yarınki programa yük bindirmemek için kalan "Tekrar" görevlerini hızlıca gözden geçir.`
-        });
-    }
-
-    // Render
-    if (tips.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted)">Yeterli veri toplandığında burada kişisel tavsiyeler görünecek.</p>';
-        return;
-    }
-
-    container.innerHTML = tips.map(tip => `
-        <div class="ai-tip ai-tip-${tip.type}">
-            <div class="ai-tip-icon">${tip.icon}</div>
-            <div class="ai-tip-body">
-                <strong>${tip.title}</strong>
-                <p>${tip.text}</p>
-            </div>
-        </div>
-    `).join('');
-}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kpss-tracker-v5';
+const CACHE_NAME = 'kpss-tracker-v6';
 const ASSETS = [
     './',
     './index.html',
