@@ -744,79 +744,7 @@ function renderWeeklyOverview() {
 }
 
 
-/* --- NOT DEFTERİ MODÜLÜ --- */
-function openNoteModal(taskId, title) {
-    currentNoteTargetId = taskId;
-    document.getElementById('noteModalSubject').textContent = title;
-    document.getElementById('noteModalText').value = appData.notes[taskId] || '';
-    document.getElementById('noteModalOverlay').classList.add('show');
-}
 
-let currentNoteTargetId = null;
-
-function renderNotes() {
-    const container = document.getElementById('notesGrid');
-    const filters = document.getElementById('notesFilters');
-
-    let allTasksWithNotes = [];
-    const subjects = new Set();
-
-    DAYS.forEach(d => {
-        const dayData = appData.days[d.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            (dayData[type] || []).forEach(t => {
-                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
-                    allTasksWithNotes.push({ ...t, note: appData.notes[t.id] });
-                    if (t.subject) subjects.add(t.subject);
-                }
-            });
-        });
-    });
-
-    if (allTasksWithNotes.length === 0) {
-        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><span class="empty-icon">📓</span><p>Henüz alınmış bir ders notu yok. Konuların yanındaki 📝 ikonuna tıklayarak not alabilirsiniz.</p></div>`;
-        filters.style.display = 'none';
-        return;
-    }
-
-    filters.style.display = 'flex';
-    // Update Filter Buttons (Keep "all" but update subjects)
-    filters.innerHTML = `<button class="filter-btn active" data-subject="all" onclick="filterNotes('all', this)">Tümü</button>` +
-        Array.from(subjects).map(s => `<button class="filter-btn" data-subject="${s}" onclick="filterNotes('${s}', this)">${s}</button>`).join('');
-
-    renderNotesItems(allTasksWithNotes, container);
-}
-
-function filterNotes(subjPattern, btnEl) {
-    document.querySelectorAll('#notesFilters .filter-btn').forEach(b => b.classList.remove('active'));
-    btnEl.classList.add('active');
-
-    let allTasksWithNotes = [];
-    DAYS.forEach(d => {
-        const dayData = appData.days[d.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            (dayData[type] || []).forEach(t => {
-                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
-                    if (subjPattern === 'all' || t.subject === subjPattern) {
-                        allTasksWithNotes.push({ ...t, note: appData.notes[t.id] });
-                    }
-                }
-            });
-        });
-    });
-
-    renderNotesItems(allTasksWithNotes, document.getElementById('notesGrid'));
-}
-
-function renderNotesItems(items, container) {
-    container.innerHTML = items.map(t => `
-        <div class="note-card" onclick="openNoteModal('${t.id}', '${escapeHtml(t.subject || t.text)}')">
-            <div class="note-subj">${t.subject ? escapeHtml(t.subject) : 'Genel'}</div>
-            <div class="note-task">${escapeHtml(t.text)}</div>
-            <div class="note-excerpt">${escapeHtml(t.note)}</div>
-        </div>
-    `).join('');
-}
 
 
 /* --- İSTATİSTİK & DASHBOARD --- */
@@ -866,25 +794,6 @@ function populateFullBadges() {
 
 /* --- MODALLAR --- */
 function setupModals() {
-    // Note Modal
-    const noteModal = document.getElementById('noteModalOverlay');
-    document.getElementById('btnCloseNote').addEventListener('click', () => noteModal.classList.remove('show'));
-    document.getElementById('btnSaveNote').addEventListener('click', () => {
-        const text = document.getElementById('noteModalText').value;
-        if (text.trim() === '') delete appData.notes[currentNoteTargetId];
-        else appData.notes[currentNoteTargetId] = text;
-        saveData();
-
-        if (appData.notes[currentNoteTargetId] && !appData.badges.includes('note_taker')) {
-            appData.badges.push('note_taker');
-            showToast("🏆 Yeni Rozet: Kâtip", true); playBeep();
-        }
-
-        noteModal.classList.remove('show');
-        showToast("Not kaydedildi 📝");
-        renderToday();
-        if (document.querySelector('.tab-btn[data-tab="notes"]').classList.contains('active')) renderNotes();
-    });
 
     // Badges Modal
     const badgesModal = document.getElementById('badgesModalOverlay');
@@ -1782,89 +1691,108 @@ function setupDailyChallenge() {
     });
 }
 
-/* --- 8. AKILLI TAVSİYE (AI ADVICE) --- */
 function renderAIAdvice() {
     const container = document.getElementById('aiAdviceContent');
     if (!container) return;
 
     const tips = [];
+    const exams = appData.exams || [];
 
-    // 1. Ders bazlı zayıf alan analizi
-    const subjects = {};
+    // 1. Zayıf Dersler Analizi (Denemelerden)
+    const examAvgNets = {};
+    if (exams.length > 0) {
+        const recentExams = exams.slice(-3);
+        EXAM_SUBJECTS.forEach(s => {
+            let sum = 0, count = 0;
+            recentExams.forEach(e => {
+                if (e.results[s.key]) { sum += e.results[s.key].net; count++; }
+            });
+            if (count > 0) examAvgNets[s.key] = { name: s.label, pct: (sum / count) / s.maxQ * 100, avg: sum / count, maxQ: s.maxQ };
+        });
+
+        // En düşük deneme performansları
+        const examWeakSubjects = Object.values(examAvgNets).filter(s => s.pct <= 60).sort((a, b) => a.pct - b.pct);
+
+        if (examWeakSubjects.length > 0) {
+            const topWeak = examWeakSubjects[0];
+            tips.push({
+                icon: '🚨',
+                type: 'warning',
+                title: 'ACİL: ' + topWeak.name + ' Alarm Veriyor!',
+                text: `Son denemelerde <strong>${topWeak.name}</strong> dersindeki başarın <strong>%${topWeak.pct.toFixed(0)} (${topWeak.avg.toFixed(1)}/${topWeak.maxQ} net)</strong> seviyelerinde kalmış. 
+                <br><br>💡 <strong>Ne yapmalısın?</strong> 
+                <ul>
+                    <li>1. Bugün ${topWeak.name} dersinden geçmişte hata yaptığın konuları kapsayan 2 adet branş denemesi çöz.</li>
+                    <li>2. Çıkan yanlışlarını analiz edip "Aralıklı Tekrar" modülüne konu isimleriyle kaydet.</li>
+                </ul>`
+            });
+
+            if (examWeakSubjects.length > 1) {
+                const others = examWeakSubjects.slice(1, 3).map(s => s.name);
+                tips.push({
+                    icon: '📉',
+                    type: 'warning',
+                    title: 'Ağırlık Verilmesi Gereken Diğer Dersler',
+                    text: `Ayrıca <strong>${others.join(', ')}</strong> testlerinde de hedefin altındasın. Bu derslerin okuma/tekrar kısımlarını doğrudan Pomodoro sayacını çalıştırarak 25 dakikalık tam odak seanslarıyla erit.`
+                });
+            }
+
+        } else if (Object.keys(examAvgNets).length > 0) {
+            tips.push({
+                icon: '🔥',
+                type: 'success',
+                title: 'Harika Bir Form!',
+                text: `Tüm branşlarda %60 başarının üzerindesin! Aynı taktiklerle deneme çözümlerine her hafta devam et.`
+            });
+        }
+    } else {
+        tips.push({ icon: '📋', type: 'info', title: 'Veri Eksik', text: 'Henüz sisteme hiç deneme sonucu girmedin. Analiz yapılabilmesi için hafta sonu bir deneme çöz ve "Deneme Sınavı" sekmesinden kaydet.' });
+    }
+
+    // 2. Program ve Çalışma Serisi Analizi
+    let totalTasks = 0, doneTasks = 0;
     DAYS.forEach(d => {
         ['tekrar', 'yeniKonular'].forEach(type => {
-            (appData.days[d.key][type] || []).forEach(t => {
-                const subj = t.subject || 'Diğer';
-                if (!subjects[subj]) subjects[subj] = { total: 0, done: 0 };
-                subjects[subj].total++;
-                if (t.completed) subjects[subj].done++;
-            });
+            const arr = appData.days[d.key][type] || [];
+            totalTasks += arr.length;
+            doneTasks += arr.filter(t => t.completed).length;
         });
     });
 
-    const subjectEntries = Object.entries(subjects).map(([name, data]) => ({
-        name, pct: data.total > 0 ? Math.round((data.done / data.total) * 100) : 0, total: data.total, done: data.done
-    }));
+    const completionRate = totalTasks > 0 ? (doneTasks / totalTasks) : 0;
+    const streak = appData.streak?.current || 0;
 
-    const weakSubjects = subjectEntries.filter(s => s.pct < 40 && s.total >= 2);
-    const strongSubjects = subjectEntries.filter(s => s.pct >= 80 && s.total >= 2);
+    if (streak === 0 && completionRate < 0.2) {
+        tips.push({
+            icon: '🛑',
+            type: 'warning',
+            title: 'Sürekliliğin Kırıldı',
+            text: `Bugün henüz dişe dokunur bir ilerleme kaydetmedin!<br><br>💡 <strong>Ne yapmalısın?</strong> Masaya otur, "Pomodoro" sekmesini aç ve en kısa/kolay görevden başlayarak sayacı başlat. Ertelemeyi kırmak için ilk 5 dakika kuralını uygula.`
+        });
+    } else if (streak >= 5) {
+        tips.push({
+            icon: '🚀',
+            type: 'success',
+            title: `${streak} Günlük Kesintisiz Çalışma!`,
+            text: `Müthiş bir momentum yakaladın. Rutinini bozma; çalışma saatlerinde uyku düzeninden taviz vermeden devam et.`
+        });
+    }
 
-    if (weakSubjects.length > 0) {
+    // 3. Genel Yönlendirme (Haftalık Hedefler)
+    if (totalTasks > 0 && completionRate >= 0.8) {
+        tips.push({
+            icon: '🏆',
+            type: 'info',
+            title: 'Haftalık Plan Tıkır Tıkır! ',
+            text: `Haftalık hedeflerinin %${Math.round(completionRate * 100)}'sini hallettin. Hafta sonu kendini mutlaka bir deneme sınavı ile ödüllendir/test et.`
+        });
+    } else if (totalTasks > 0 && new Date().getDay() === 0 && completionRate < 0.5) {
         tips.push({
             icon: '⚠️',
             type: 'warning',
-            title: 'Odaklanman Gereken Dersler',
-            text: `<strong>${weakSubjects.map(s => s.name).join(', ')}</strong> derslerinde tamamlama oranın düşük (%${weakSubjects.map(s => s.pct).join(', %')}). Bu hafta bu derslere öncelik ver.`
+            title: 'Hafta Bitiyor!',
+            text: `Bugün Pazar ve planının hala %${Math.round(completionRate * 100)}'si bitti. Yarınki programa yük bindirmemek için kalan "Tekrar" görevlerini hızlıca gözden geçir.`
         });
-    }
-
-    if (strongSubjects.length > 0) {
-        tips.push({
-            icon: '🌟',
-            type: 'success',
-            title: 'Güçlü Yanların',
-            text: `<strong>${strongSubjects.map(s => s.name).join(', ')}</strong> derslerinde çok iyisin! Bu dersleri tekrar modunda tutarak bilgini pekiştir.`
-        });
-    }
-
-    // 2. Seri analizi
-    const streak = appData.streak?.current || 0;
-    if (streak === 0) {
-        tips.push({ icon: '🔥', type: 'warning', title: 'Çalışma Serisi Kırıldı!', text: 'Bugün en az 1 konu tamamlayarak serine başla. Küçük adımlar büyük sonuçlar doğurur.' });
-    } else if (streak >= 7) {
-        tips.push({ icon: '🚀', type: 'success', title: `${streak} Günlük Seri!`, text: 'Müthiş bir disiplin gösteriyorsun! Bu tempoyu korursan sınavı rahat geçersin.' });
-    }
-
-    // 3. Pomodoro verimi analizi
-    const pomoMins = appData.pomodoro?.totalMins || 0;
-    if (pomoMins < 50) {
-        tips.push({ icon: '🍅', type: 'info', title: 'Daha Fazla Odaklan', text: 'Toplam Pomodoro süren düşük. Günde en az 3 Pomodoro (75 dk) hedefle. Odaklı çalışma = verimli çalışma.' });
-    }
-
-    // 4. Deneme analizi
-    const exams = appData.exams || [];
-    if (exams.length >= 2) {
-        const last = exams[exams.length - 1];
-        const prev = exams[exams.length - 2];
-        const diff = last.totalNet - prev.totalNet;
-        if (diff > 0) {
-            tips.push({ icon: '📈', type: 'success', title: 'Deneme Neti Yükseliyor!', text: `Son denemen öncekine göre <strong>+${diff.toFixed(1)} net</strong> daha iyi. Bu ritmi devam ettir!` });
-        } else if (diff < -5) {
-            tips.push({ icon: '📉', type: 'warning', title: 'Deneme Netinde Düşüş', text: `Son denemen <strong>${diff.toFixed(1)} net</strong> düştü. Sınav stresini yönet ve zayıf derslerine odaklan.` });
-        }
-    } else if (exams.length === 0) {
-        tips.push({ icon: '📝', type: 'info', title: 'Deneme Sınavı Çöz', text: 'Henüz deneme sonucu girmedin. Haftalık en az 1 deneme çözerek gelişimini ölç.' });
-    }
-
-    // 5. Genel tavsiye
-    const totalTasks = subjectEntries.reduce((s, e) => s + e.total, 0);
-    const totalDone = subjectEntries.reduce((s, e) => s + e.done, 0);
-    const overallPct = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0;
-
-    if (overallPct >= 90) {
-        tips.push({ icon: '🏆', type: 'success', title: 'Hazırsın!', text: 'Programdaki konuların neredeyse tamamını bitirdin. Şimdi deneme çözerek pratiğie dök.' });
-    } else if (totalTasks === 0) {
-        tips.push({ icon: '📚', type: 'info', title: 'Program Gir', text: 'Henüz haftalık program girilmemiş. "Program" sekmesinden başla!' });
     }
 
     // Render
