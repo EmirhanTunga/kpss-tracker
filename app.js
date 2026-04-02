@@ -121,8 +121,13 @@ function loadData() {
         if (!appData.heatmap) appData.heatmap = {};
 
         // Eğer appData'da olandan daha fazla exam bulduysak (eski key'lerden)
-        if (allFoundExams.length > appData.exams.length) {
-            appData.exams = allFoundExams;
+        if (allFoundExams && allFoundExams.length > 0) {
+            if (!appData.exams) appData.exams = [];
+            allFoundExams.forEach(ex => {
+                if (!appData.exams.find(e => e.id === ex.id)) {
+                    appData.exams.push(ex);
+                }
+            });
         }
 
         DAYS.forEach(d => {
@@ -1420,7 +1425,13 @@ function setupExams() {
 }
 
 function renderExams() {
-    const exams = (appData.exams || []).sort((a, b) => a.date.localeCompare(b.date));
+    const exams = (appData.exams || [])
+        .filter(e => e && e.id)
+        .sort((a, b) => {
+            const d1 = a.date || "1970-01-01";
+            const d2 = b.date || "1970-01-01";
+            return d1.localeCompare(d2);
+        });
     const cardsEl = document.getElementById('examCards');
     const chartEl = document.getElementById('examChartArea');
 
@@ -1433,11 +1444,12 @@ function renderExams() {
     // Gelişim Çizgi Grafiği (SVG)
     if (chartEl && exams.length >= 2) {
         const w = 600, h = 200, pad = 40;
-        const maxNet = Math.max(...exams.map(e => e.totalNet), 1);
-        const points = exams.map((e, i) => {
-            const x = pad + (i / (exams.length - 1)) * (w - pad * 2);
+        const validExams = exams.filter(e => e.totalNet !== undefined && e.totalNet !== null);
+        const maxNet = Math.max(...validExams.map(e => e.totalNet), 1);
+        const points = validExams.map((e, i) => {
+            const x = pad + (i / (validExams.length - 1)) * (w - pad * 2);
             const y = h - pad - ((e.totalNet / maxNet) * (h - pad * 2));
-            return { x, y, net: e.totalNet, name: e.name };
+            return { x, y, net: e.totalNet, name: e.name || 'İsimsiz' };
         });
         const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
 
@@ -1456,12 +1468,14 @@ function renderExams() {
     if (cardsEl) {
         cardsEl.innerHTML = exams.slice(-5).reverse().map((exam, i) => {
             const prevExam = exams.length > 1 && i === 0 ? exams[exams.length - 2] : null;
-            const diff = prevExam ? (exam.totalNet - prevExam.totalNet).toFixed(1) : null;
+            const t1 = exam.totalNet || 0;
+            const t2 = prevExam ? (prevExam.totalNet || 0) : null;
+            const diff = prevExam ? (t1 - t2).toFixed(1) : null;
             const diffStr = diff !== null ? (diff > 0 ? `<span class="exam-up">▲ +${diff}</span>` : diff < 0 ? `<span class="exam-down">▼ ${diff}</span>` : `<span class="exam-same">= 0</span>`) : '';
 
             const subjectCells = EXAM_SUBJECTS.map(s => {
-                const r = exam.results[s.key];
-                return r ? `<td>${r.net.toFixed(1)}</td>` : `<td>-</td>`;
+                const r = (exam.results || {})[s.key];
+                return r && r.net !== undefined ? `<td>${r.net.toFixed(1)}</td>` : `<td>-</td>`;
             }).join('');
 
             return `
@@ -1472,7 +1486,7 @@ function renderExams() {
                             <small>${exam.date}</small>
                         </div>
                         <div class="exam-total">
-                            <span class="exam-total-net">${exam.totalNet.toFixed(1)}</span>
+                            <span class="exam-total-net">${(exam.totalNet || 0).toFixed(1)}</span>
                             <small>Toplam Net</small>
                             ${diffStr}
                         </div>
@@ -1520,13 +1534,18 @@ function analyzeWeakSubjects(exams) {
     const list = document.getElementById('weakSubjectsList');
     if (!box || !list || exams.length < 1) { box?.classList.add('hidden'); return; }
 
+    const validRecentExams = exams.filter(e => e && e.totalNet !== undefined && e.totalNet !== null);
+
     // Son 3 denemenin ortalamasını al
-    const recent = exams.slice(-3);
+    const recent = validRecentExams.slice(-3);
     const avgNets = {};
     EXAM_SUBJECTS.forEach(s => {
         let sum = 0, count = 0;
         recent.forEach(e => {
-            if (e.results[s.key]) { sum += e.results[s.key].net; count++; }
+            if (e.results && e.results[s.key] && e.results[s.key].net !== undefined) {
+                sum += e.results[s.key].net;
+                count++;
+            }
         });
         if (count > 0) avgNets[s.key] = { label: s.label, avg: sum / count, maxQ: s.maxQ, pct: ((sum / count) / s.maxQ) * 100 };
     });
