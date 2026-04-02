@@ -1155,13 +1155,12 @@ function mapToTasks(parsed, oldItems) {
    ======================================== */
 
 const EXAM_SUBJECTS = [
-    { key: 'turkce', label: 'Türkçe', maxQ: 40 },
-    { key: 'matematik', label: 'Matematik', maxQ: 40 },
+    { key: 'turkce', label: 'Türkçe', maxQ: 30 },
+    { key: 'matematik', label: 'Matematik', maxQ: 30 },
     { key: 'tarih', label: 'Tarih', maxQ: 27 },
-    { key: 'cografya', label: 'Coğrafya', maxQ: 17 },
-    { key: 'vatandaslik', label: 'Vatandaşlık', maxQ: 15 },
-    { key: 'anayasa', label: 'Anayasa', maxQ: 5 },
-    { key: 'egitim', label: 'Eğitim Bil.', maxQ: 16 }
+    { key: 'cografya', label: 'Coğrafya', maxQ: 18 },
+    { key: 'vatandaslik', label: 'Vatandaşlık', maxQ: 9 },
+    { key: 'guncel', label: 'Güncel Bilgiler', maxQ: 6 }
 ];
 
 /* --- 1. ARALIKLI TEKRAR (SPACED REPETITION) --- */
