@@ -58,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial Renders
     renderToday();
-    renderNotes();
     renderStats();
     renderSpacedRepetition();
     renderExams();
@@ -294,7 +293,6 @@ function setupTabs() {
             if (panel) {
                 panel.classList.add('active');
                 if (btn.dataset.tab === 'stats') renderStats();
-                if (btn.dataset.tab === 'notes') renderNotes();
 
                 // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
                 const miniT = document.getElementById('miniTimer');
