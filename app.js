@@ -1295,17 +1295,61 @@ window.openHeatmapModal = function (dateStr) {
     title.textContent = `📅 ${dateStr} Detayı`;
 
     let count = 0;
-    let tasksHtml = '';
+    let tasksList = [];
+
     if (Array.isArray(rawVal)) {
-        count = rawVal.length;
-        tasksHtml = rawVal.map(t => `<li>${escapeHtml(t)}</li>`).join('');
+        tasksList = [...rawVal];
+        count = tasksList.length;
     } else if (typeof rawVal === 'number') {
         count = rawVal;
-        tasksHtml = `<li>${count} görev tamamlandı (Eski kayıt)</li>`;
     }
 
-    if (count > 0) {
+    // Eski kayıtlarda detay yoksa, appData.days veya geçmiş üzerinden bulmaya çalışalım
+    if (count > 0 && tasksList.length === 0) {
+        // Mevcut haftadaki görevleri tara
+        DAYS.forEach(d => {
+            ['tekrar', 'yeniKonular'].forEach(type => {
+                const arr = appData.days[d.key][type] || [];
+                arr.forEach(t => {
+                    if (t.completed && t.completedAt && t.completedAt.startsWith(dateStr)) {
+                        const taskName = t.subject ? `${t.subject} - ${t.text}` : t.text;
+                        if (!tasksList.includes(taskName)) tasksList.push(taskName);
+                    }
+                });
+            });
+        });
+
+        // Geçmiş arşivi varsa tara (tam garanti olsun diye)
+        if (tasksList.length === 0) {
+            try {
+                const historyRaw = localStorage.getItem(HISTORY_KEY);
+                if (historyRaw) {
+                    const history = JSON.parse(historyRaw);
+                    history.forEach(pastWeek => {
+                        Object.keys(pastWeek.days || {}).forEach(dayKey => {
+                            ['tekrar', 'yeniKonular'].forEach(type => {
+                                const arr = pastWeek.days[dayKey][type] || [];
+                                arr.forEach(t => {
+                                    if (t.completed && t.completedAt && t.completedAt.startsWith(dateStr)) {
+                                        const taskName = t.subject ? `${t.subject} - ${t.text}` : t.text;
+                                        if (!tasksList.includes(taskName)) tasksList.push(taskName);
+                                    }
+                                });
+                            });
+                        });
+                    });
+                }
+            } catch (e) {
+                console.error("Heatmap geçmişi okunamadı", e);
+            }
+        }
+    }
+
+    if (tasksList.length > 0) {
+        const tasksHtml = tasksList.map(t => `<li>${escapeHtml(t)}</li>`).join('');
         content.innerHTML = `<ul class="hm-modal-list">${tasksHtml}</ul>`;
+    } else if (count > 0) {
+        content.innerHTML = `<ul class="hm-modal-list"><li>${count} adet görev tamamlanmış (Detaylı kayıt yok)</li></ul>`;
     } else {
         content.innerHTML = `<div class="empty-state"><span class="empty-icon">⏳</span><p>Bu tarihte kaydedilmiş görev yok.</p></div>`;
     }
