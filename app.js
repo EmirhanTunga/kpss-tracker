@@ -67,50 +67,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* --- VERİ YÖNETİMİ --- */
 function loadData() {
-    appData = null;
+    try {
+        appData = null;
 
-    // Geçmiş tüm anahtarları tarayarak en dolu olanını (kaybolan veriyi) kurtar
-    const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
+        // Geçmiş tüm anahtarları tarayarak en dolu olanını (kaybolan veriyi) kurtar
+        const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
+        let allFoundExams = [];
 
-    for (const key of keysToCheck) {
-        if (!appData) {
+        for (const key of keysToCheck) {
             try {
                 let raw = localStorage.getItem(key);
                 if (raw) {
                     let parsed = JSON.parse(raw);
-                    let hasTask = false;
-                    for (let d of Object.values(parsed.days || {})) {
-                        if (((d.tekrar || []).length > 0) || ((d.yeniKonular || []).length > 0)) hasTask = true;
+
+                    // Geçmiş sınavlari topla (yedek)
+                    if (parsed.exams && Array.isArray(parsed.exams)) {
+                        parsed.exams.forEach(ex => {
+                            if (!allFoundExams.find(e => e.id === ex.id)) {
+                                allFoundExams.push(ex);
+                            }
+                        });
                     }
-                    if (hasTask) appData = parsed;
+
+                    if (!appData) {
+                        let hasTask = false;
+                        for (let d of Object.values(parsed.days || {})) {
+                            if (((d.tekrar || []).length > 0) || ((d.yeniKonular || []).length > 0)) hasTask = true;
+                        }
+                        let hasExam = (parsed.exams && parsed.exams.length > 0);
+                        let hasNotes = (parsed.notes && Object.keys(parsed.notes).length > 0);
+
+                        if (hasTask || hasExam || hasNotes) appData = parsed;
+                    }
                 }
             } catch (e) { }
         }
+
+        if (!appData) {
+            // Hiçbirinde veri yoksa boş başlat
+            let raw = localStorage.getItem(STORAGE_KEY);
+            appData = raw ? JSON.parse(raw) : { weekLabel: getCurrentWeekLabel(), days: {} };
+        }
+
+        // Yeni model default değerleri
+        if (!appData.notes) appData.notes = {};
+        if (!appData.pomodoro) appData.pomodoro = { totalCompleted: 0, totalMins: 0, history: [] };
+        if (!appData.badges) appData.badges = [];
+        if (!appData.streak) appData.streak = { current: 0, lastDate: null };
+        if (!appData.points) appData.points = 0;
+        if (!appData.settings) appData.settings = { goalPct: 80 };
+        if (!appData.spacedRep) appData.spacedRep = [];
+        if (!appData.exams) appData.exams = [];
+        if (!appData.heatmap) appData.heatmap = {};
+
+        // Eğer appData'da olandan daha fazla exam bulduysak (eski key'lerden)
+        if (allFoundExams.length > appData.exams.length) {
+            appData.exams = allFoundExams;
+        }
+
+        DAYS.forEach(d => {
+            if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
+        });
+
+        saveData();
+        updateHeaderStats();
+    } catch (e) {
+        console.error('Veri yükleme hatası', e);
     }
-
-    if (!appData) {
-        // Hiçbirinde veri yoksa boş başlat
-        let raw = localStorage.getItem(STORAGE_KEY);
-        appData = raw ? JSON.parse(raw) : { weekLabel: getCurrentWeekLabel(), days: {} };
-    }
-
-    // Yeni model default değerleri
-    if (!appData.notes) appData.notes = {};
-    if (!appData.pomodoro) appData.pomodoro = { totalCompleted: 0, totalMins: 0, history: [] };
-    if (!appData.badges) appData.badges = [];
-    if (!appData.streak) appData.streak = { current: 0, lastDate: null };
-    if (!appData.points) appData.points = 0;
-    if (!appData.settings) appData.settings = { goalPct: 80 };
-    if (!appData.spacedRep) appData.spacedRep = [];
-    if (!appData.exams) appData.exams = [];
-    if (!appData.heatmap) appData.heatmap = {};
-
-    DAYS.forEach(d => {
-        if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
-    });
-
-    saveData();
-    updateHeaderStats();
 }
 
 function saveData() {
