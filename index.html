@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,12 +10,15 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Confetti Canvas -->
     <canvas id="confetti" class="confetti-canvas"></canvas>
@@ -34,7 +38,7 @@
             <div class="header-right">
                 <button class="theme-toggle" id="btnThemeToggle" title="Tema Değiştir (T tuşu)">🌙</button>
                 <div class="mini-timer hidden" id="miniTimer" title="Pomodoro'ya Dön">🍅 <span>25:00</span></div>
-                
+
                 <div class="countdown-box" id="countdownBox">
                     <div class="countdown-inner">
                         <span class="countdown-number" id="countdownNumber">0</span>
@@ -45,7 +49,8 @@
                     </div>
                 </div>
                 <!-- Gamification Badges -->
-                <div class="stat-badge completed-badge clickable" id="headerStreakBadge" title="Seri detayları için tıklayın">
+                <div class="stat-badge completed-badge clickable" id="headerStreakBadge"
+                    title="Seri detayları için tıklayın">
                     <span class="stat-number" id="headerStreak">0</span>
                     <span class="stat-label">🔥 Gün Seri</span>
                 </div>
@@ -70,9 +75,6 @@
             <button class="tab-btn" data-tab="exams" id="tabExams">
                 <span class="tab-icon">📊</span><span>Deneme</span>
             </button>
-            <button class="tab-btn" data-tab="notes" id="tabNotes">
-                <span class="tab-icon">📓</span><span>Notlarım</span>
-            </button>
             <button class="tab-btn" data-tab="stats" id="tabStats">
                 <span class="tab-icon">📈</span><span>İstatistik</span>
             </button>
@@ -89,8 +91,10 @@
                 <div class="day-selector" id="daySelector"></div>
 
                 <div class="today-header-actions">
-                    <div class="daily-goal hidden" id="dailyGoalDisplay">🎯 Günlük Hedef: <span id="dailyGoalText">Belirlenmedi</span></div>
-                    <span class="drag-drop-hint">ℹ️ Kartları sürükleyip bırakarak öncelik sırasını ayarlayabilirsiniz.</span>
+                    <div class="daily-goal hidden" id="dailyGoalDisplay">🎯 Günlük Hedef: <span
+                            id="dailyGoalText">Belirlenmedi</span></div>
+                    <span class="drag-drop-hint">ℹ️ Kartları sürükleyip bırakarak öncelik sırasını
+                        ayarlayabilirsiniz.</span>
                 </div>
 
                 <!-- Weekly Progress Overview -->
@@ -155,13 +159,14 @@
                             <div class="pomodoro-header">
                                 <h2>🍅 Odaklanma Modu</h2>
                             </div>
-                            
+
                             <div class="pomodoro-modes" id="pomoModes">
-                                <button class="pomo-mode active" data-mode="work" data-time="25">Pomodoro (25dk)</button>
+                                <button class="pomo-mode active" data-mode="work" data-time="25">Pomodoro
+                                    (25dk)</button>
                                 <button class="pomo-mode" data-mode="shortBreak" data-time="5">Mola (5dk)</button>
                                 <button class="pomo-mode" data-mode="longBreak" data-time="15">Uzun Mola (15dk)</button>
                             </div>
-                            
+
                             <div class="pomodoro-timer-wrapper">
                                 <svg class="pomodoro-svg" viewBox="0 0 200 200">
                                     <circle class="pomo-bg" cx="100" cy="100" r="90"></circle>
@@ -183,7 +188,7 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="pomo-sidebar">
                             <h3>📊 Bugünkü Odaklanma</h3>
                             <div class="pomo-stats-grid">
@@ -197,7 +202,9 @@
                                 </div>
                             </div>
                             <div class="pomo-history-list" id="pomoHistoryList">
-                                <div class="empty-state"><span class="empty-icon">⏳</span><p>Henüz seans tamamlanmadı</p></div>
+                                <div class="empty-state"><span class="empty-icon">⏳</span>
+                                    <p>Henüz seans tamamlanmadı</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -208,21 +215,24 @@
             <section class="tab-panel" id="panelWeekly">
                 <div class="weekly-header">
                     <h2>📋 Haftalık Program Girişi</h2>
-                    <p>Gün başlıklarıyla yapıştırın. Ders adını yazıp altına <strong>- ile</strong> konuları ekleyin.</p>
+                    <p>Gün başlıklarıyla yapıştırın. Ders adını yazıp altına <strong>- ile</strong> konuları ekleyin.
+                    </p>
                 </div>
 
                 <div class="weekly-form">
                     <div class="bulk-input-card">
                         <div class="input-group">
                             <label class="label-lessons">📖 Yeni Konular (Tüm Hafta)</label>
-                            <textarea id="inputBulkYeni" placeholder="Pazartesi&#10;Türkçe&#10;-Paragraf soruları" rows="20"></textarea>
+                            <textarea id="inputBulkYeni" placeholder="Pazartesi&#10;Türkçe&#10;-Paragraf soruları"
+                                rows="20"></textarea>
                         </div>
                     </div>
 
                     <div class="bulk-input-card">
                         <div class="input-group">
                             <label class="label-review">🔄 Tekrar Programı</label>
-                            <textarea id="inputBulkTekrar" placeholder="Pazartesi&#10;Anayasa&#10;-Temel haklar" rows="20"></textarea>
+                            <textarea id="inputBulkTekrar" placeholder="Pazartesi&#10;Vatandaşlık&#10;-Temel haklar"
+                                rows="20"></textarea>
                         </div>
                     </div>
                 </div>
@@ -234,30 +244,16 @@
                 </div>
             </section>
 
-            <!-- NOTES TAB -->
-            <section class="tab-panel" id="panelNotes">
-                <div class="notes-header">
-                    <h2>📓 Ders Notlarım</h2>
-                    <p>Çalışırken aldığınız kısa notlar burada listelenir.</p>
-                </div>
-                <div class="notes-filters" id="notesFilters">
-                    <button class="filter-btn active" data-subject="all">Tümü</button>
-                    <!-- Dinamik ders filtreleri -->
-                </div>
-                <div class="notes-grid" id="notesGrid">
-                    <!-- Notlar buraya eklenecek -->
-                </div>
-            </section>
-
             <!-- STATS & DASHBOARD TAB -->
             <section class="tab-panel" id="panelStats">
                 <div class="stats-header">
                     <h2>📊 Gelişim & İstatistikler</h2>
                     <div class="stats-actions">
-                        <button class="btn btn-sm btn-view-history" id="btnViewHistory">📁 Geçmiş Haftalar (Arşiv)</button>
+                        <button class="btn btn-sm btn-view-history" id="btnViewHistory">📁 Geçmiş Haftalar
+                            (Arşiv)</button>
                     </div>
                 </div>
-                
+
                 <div class="stats-dashboard">
                     <div class="stats-grid-top">
                         <div class="dash-card">
@@ -271,8 +267,10 @@
                             <h3>✅ Genel Tamamlama</h3>
                             <div class="donut-chart-wrapper">
                                 <svg viewBox="0 0 36 36" class="circular-chart blue">
-                                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                    <path class="circle" id="dashCompletionDonut" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle-bg"
+                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path class="circle" id="dashCompletionDonut" stroke-dasharray="0, 100"
+                                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                                     <text x="18" y="20.35" class="percentage" id="dashCompletionText">0%</text>
                                 </svg>
                             </div>
@@ -373,7 +371,7 @@
                 <div class="settings-header">
                     <h2>⚙️ Ayarlar & Yedekleme</h2>
                 </div>
-                
+
                 <div class="settings-grid">
                     <div class="setting-card">
                         <h3>🎯 Hedef Belirleme</h3>
@@ -394,8 +392,9 @@
 
                     <div class="setting-card">
                         <h3>📤 Veri Yedekleme</h3>
-                        <p>Tüm emeğini, programını, notlarını ve rozetlerini JSON dosyası olarak bilgisayarına indir.</p>
-                        <button class="btn btn-success mt-2" id="btnExportData"><span>💾</span> Yedeği İndir (.json)</button>
+                        <p>Tüm emeğini, programını ve rozetlerini JSON dosyası olarak bilgisayarına indir.</p>
+                        <button class="btn btn-success mt-2" id="btnExportData"><span>💾</span> Yedeği İndir
+                            (.json)</button>
                     </div>
 
                     <div class="setting-card">
@@ -408,7 +407,7 @@
 
                     <div class="setting-card danger-zone">
                         <h3>⚠️ Tehlikeli Bölge</h3>
-                        <p>Tüm verileri, geçmişi, notları ve rozetleri kalıcı olarak siler.</p>
+                        <p>Tüm verileri, geçmişi ve rozetleri kalıcı olarak siler.</p>
                         <button class="btn btn-danger mt-2" id="btnHardReset">Sistemi Sıfırla</button>
                     </div>
 
@@ -435,23 +434,6 @@
         <span class="toast-text" id="toastText"></span>
     </div>
 
-    <!-- NOTE MODAL -->
-    <div class="modal-overlay" id="noteModalOverlay">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h3>📝 Not Düzenle</h3>
-                <button class="modal-close" id="btnCloseNote">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="note-target-title" id="noteModalSubject">Matematik - Sayılar</div>
-                <textarea class="note-editor" id="noteModalText" rows="6" placeholder="Bu konuyla ilgili unutmamam gereken kurallar, formüller vs..."></textarea>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-save" id="btnSaveNote">Notu Kaydet</button>
-            </div>
-        </div>
-    </div>
-
     <!-- BADGES MODAL -->
     <div class="modal-overlay" id="badgesModalOverlay">
         <div class="modal-box modal-lg">
@@ -469,4 +451,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

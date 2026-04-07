@@ -24,7 +24,6 @@ const BADGES_DEFS = {
     'streak_3': { icon: '🔥', name: 'Alev Aldın', desc: 'Üst üste 3 gün çalıştın.' },
     'streak_7': { icon: '🚀', name: 'Roket', desc: 'Üst üste 7 gün çalıştın.' },
     'night_owl': { icon: '🦉', name: 'Gece Kuşu', desc: 'Gece 23:00\'ten sonra ders çalıştın.' },
-    'note_taker': { icon: '📝', name: 'Kâtip', desc: 'Sisteme ilk notunu ekledin.' },
     'half_way': { icon: '🎢', name: 'Yarı Yol', desc: 'Haftalık programın %50\'sini tamamladın.' }
 };
 
@@ -58,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial Renders
     renderToday();
-    renderNotes();
     renderStats();
     renderSpacedRepetition();
     renderExams();
@@ -95,7 +93,6 @@ function loadData() {
     }
 
     // Yeni model default değerleri
-    if (!appData.notes) appData.notes = {};
     if (!appData.pomodoro) appData.pomodoro = { totalCompleted: 0, totalMins: 0, history: [] };
     if (!appData.badges) appData.badges = [];
     if (!appData.streak) appData.streak = { current: 0, lastDate: null };
@@ -278,7 +275,6 @@ function setupTabs() {
             if (panel) {
                 panel.classList.add('active');
                 if (btn.dataset.tab === 'stats') renderStats();
-                if (btn.dataset.tab === 'notes') renderNotes();
 
                 // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
                 const miniT = document.getElementById('miniTimer');
@@ -357,8 +353,6 @@ function renderTaskList(containerId, tasks, type) {
             html += `<div class="subject-header">${escapeHtml(currentSubject)}</div>`;
         }
 
-        const hasNote = appData.notes[task.id] && appData.notes[task.id].trim() !== '';
-
         let checkedAttr = task.completed ? 'checked' : '';
         let opacityStyle = task.completed ? 'opacity: 0.5; filter: grayscale(1);' : '';
 
@@ -370,7 +364,6 @@ function renderTaskList(containerId, tasks, type) {
                 </label>
                 <span class="task-text" style="${task.completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(task.text)}</span>
                 <div class="task-actions">
-                    <button class="task-action-btn ${hasNote ? 'has-note' : ''}" onclick="openNoteModal('${task.id}', '${escapeHtml(task.subject || task.text)}')" title="Not Ekle/Düzenle">📝</button>
                     ${!task.completed ? `<button class="task-action-btn" onclick="focusPomo('${task.id}')" title="Bu konuya odaklan">🍅</button>` : ''}
                 </div>
             </div>
@@ -744,81 +737,6 @@ function renderWeeklyOverview() {
 }
 
 
-/* --- NOT DEFTERİ MODÜLÜ --- */
-function openNoteModal(taskId, title) {
-    currentNoteTargetId = taskId;
-    document.getElementById('noteModalSubject').textContent = title;
-    document.getElementById('noteModalText').value = appData.notes[taskId] || '';
-    document.getElementById('noteModalOverlay').classList.add('show');
-}
-
-let currentNoteTargetId = null;
-
-function renderNotes() {
-    const container = document.getElementById('notesGrid');
-    const filters = document.getElementById('notesFilters');
-
-    let allTasksWithNotes = [];
-    const subjects = new Set();
-
-    DAYS.forEach(d => {
-        const dayData = appData.days[d.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            (dayData[type] || []).forEach(t => {
-                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
-                    allTasksWithNotes.push({ ...t, note: appData.notes[t.id] });
-                    if (t.subject) subjects.add(t.subject);
-                }
-            });
-        });
-    });
-
-    if (allTasksWithNotes.length === 0) {
-        container.innerHTML = `<div class="empty-state" style="grid-column: 1/-1"><span class="empty-icon">📓</span><p>Henüz alınmış bir ders notu yok. Konuların yanındaki 📝 ikonuna tıklayarak not alabilirsiniz.</p></div>`;
-        filters.style.display = 'none';
-        return;
-    }
-
-    filters.style.display = 'flex';
-    // Update Filter Buttons (Keep "all" but update subjects)
-    filters.innerHTML = `<button class="filter-btn active" data-subject="all" onclick="filterNotes('all', this)">Tümü</button>` +
-        Array.from(subjects).map(s => `<button class="filter-btn" data-subject="${s}" onclick="filterNotes('${s}', this)">${s}</button>`).join('');
-
-    renderNotesItems(allTasksWithNotes, container);
-}
-
-function filterNotes(subjPattern, btnEl) {
-    document.querySelectorAll('#notesFilters .filter-btn').forEach(b => b.classList.remove('active'));
-    btnEl.classList.add('active');
-
-    let allTasksWithNotes = [];
-    DAYS.forEach(d => {
-        const dayData = appData.days[d.key];
-        ['tekrar', 'yeniKonular'].forEach(type => {
-            (dayData[type] || []).forEach(t => {
-                if (appData.notes[t.id] && appData.notes[t.id].trim() !== '') {
-                    if (subjPattern === 'all' || t.subject === subjPattern) {
-                        allTasksWithNotes.push({ ...t, note: appData.notes[t.id] });
-                    }
-                }
-            });
-        });
-    });
-
-    renderNotesItems(allTasksWithNotes, document.getElementById('notesGrid'));
-}
-
-function renderNotesItems(items, container) {
-    container.innerHTML = items.map(t => `
-        <div class="note-card" onclick="openNoteModal('${t.id}', '${escapeHtml(t.subject || t.text)}')">
-            <div class="note-subj">${t.subject ? escapeHtml(t.subject) : 'Genel'}</div>
-            <div class="note-task">${escapeHtml(t.text)}</div>
-            <div class="note-excerpt">${escapeHtml(t.note)}</div>
-        </div>
-    `).join('');
-}
-
-
 /* --- İSTATİSTİK & DASHBOARD --- */
 function renderStats() {
     // 1. Seriler ve Puanlar
@@ -866,26 +784,6 @@ function populateFullBadges() {
 
 /* --- MODALLAR --- */
 function setupModals() {
-    // Note Modal
-    const noteModal = document.getElementById('noteModalOverlay');
-    document.getElementById('btnCloseNote').addEventListener('click', () => noteModal.classList.remove('show'));
-    document.getElementById('btnSaveNote').addEventListener('click', () => {
-        const text = document.getElementById('noteModalText').value;
-        if (text.trim() === '') delete appData.notes[currentNoteTargetId];
-        else appData.notes[currentNoteTargetId] = text;
-        saveData();
-
-        if (appData.notes[currentNoteTargetId] && !appData.badges.includes('note_taker')) {
-            appData.badges.push('note_taker');
-            showToast("🏆 Yeni Rozet: Kâtip", true); playBeep();
-        }
-
-        noteModal.classList.remove('show');
-        showToast("Not kaydedildi 📝");
-        renderToday();
-        if (document.querySelector('.tab-btn[data-tab="notes"]').classList.contains('active')) renderNotes();
-    });
-
     // Badges Modal
     const badgesModal = document.getElementById('badgesModalOverlay');
     const openBadges = () => { populateFullBadges(); badgesModal.classList.add('show'); };
@@ -1155,13 +1053,12 @@ function mapToTasks(parsed, oldItems) {
    ======================================== */
 
 const EXAM_SUBJECTS = [
-    { key: 'turkce', label: 'Türkçe', maxQ: 40 },
-    { key: 'matematik', label: 'Matematik', maxQ: 40 },
+    { key: 'turkce', label: 'Türkçe', maxQ: 30 },
+    { key: 'matematik', label: 'Matematik', maxQ: 30 },
     { key: 'tarih', label: 'Tarih', maxQ: 27 },
-    { key: 'cografya', label: 'Coğrafya', maxQ: 17 },
-    { key: 'vatandaslik', label: 'Vatandaşlık', maxQ: 15 },
-    { key: 'anayasa', label: 'Anayasa', maxQ: 5 },
-    { key: 'egitim', label: 'Eğitim Bil.', maxQ: 16 }
+    { key: 'cografya', label: 'Coğrafya', maxQ: 18 },
+    { key: 'vatandaslik', label: 'Vatandaşlık', maxQ: 9 },
+    { key: 'guncel', label: 'Güncel Bilgiler', maxQ: 6 }
 ];
 
 /* --- 1. ARALIKLI TEKRAR (SPACED REPETITION) --- */
