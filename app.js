@@ -1378,6 +1378,9 @@ function renderExams() {
                     </div>
                     
                     ${exam.scores ? `
+                    <div class="exam-score-explanation" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom: 8px;">
+                        💡 Yaptığınız <strong>${exam.totalNet.toFixed(1)} toplam net</strong> üzerinden (Ön Lisans formatında) geçmiş yıllardaki katsayılara göre alabileceğiniz tahmini KPSS puanları:
+                    </div>
                     <div class="exam-scores-pill-group">
                         <div class="score-pill current">
                             <span class="score-year">2024 Puan:</span>
