@@ -1,9 +1,14 @@
 // ===== KPSS Başarı Rehberi - Ana Uygulama Dosyası =====
 
 /* --- SABİTLER VE VERİ YAPISI --- */
-const STORAGE_KEY = 'kpss_tracker_v2';
+let STORAGE_KEY = 'kpss_tracker_v2';
 const HISTORY_KEY = 'kpss_tracker_history';
 const DRAFT_KEY = 'kpss_tracker_drafts';
+
+const VALID_USERS = {
+    'emirhan@kpss.com': '1234',
+    'test@kpss.com': '123'
+};
 const EXAM_DATE = new Date(2026, 9, 4); // 4 Ekim 2026
 
 const DAYS = [
@@ -39,6 +44,56 @@ let pomoIsRunning = false;
 
 /* --- BAŞLANGIÇ (INIT) --- */
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide main app container initially
+    const appContainer = document.querySelector('.app-container');
+    const loginScreen = document.getElementById('loginScreen');
+    if(appContainer) appContainer.style.display = 'none';
+
+    // Auto login check
+    const savedUser = localStorage.getItem('kpss_current_user');
+    if (savedUser && VALID_USERS[savedUser]) {
+        handleLoginSuccess(savedUser);
+    } else {
+        if(loginScreen) loginScreen.style.display = 'flex';
+    }
+
+    // Login logic
+    const btnLogin = document.getElementById('btnLogin');
+    if(btnLogin) {
+        btnLogin.addEventListener('click', () => {
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPassword').value.trim();
+            const err = document.getElementById('loginError');
+            
+            if (VALID_USERS[email] && VALID_USERS[email] === pass) {
+                err.style.display = 'none';
+                localStorage.setItem('kpss_current_user', email);
+                handleLoginSuccess(email);
+            } else {
+                err.style.display = 'block';
+            }
+        });
+    }
+    
+    // Logout logic
+    const btnLogout = document.getElementById('btnLogout');
+    if(btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            localStorage.removeItem('kpss_current_user');
+            location.reload();
+        });
+    }
+});
+
+function handleLoginSuccess(email) {
+    const loginScreen = document.getElementById('loginScreen');
+    const appContainer = document.querySelector('.app-container');
+    if(loginScreen) loginScreen.style.display = 'none';
+    if(appContainer) appContainer.style.display = 'block';
+    
+    // Set dynamic storage key
+    STORAGE_KEY = `kpss_tracker_v2_${email}`;
+
     loadData();
     setupBasicUI();
     setupTheme();
@@ -64,30 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setupQuestions();
     setupSyllabus();
     setupFlashcards();
-});
+}
 
 /* --- VERİ YÖNETİMİ --- */
 function loadData() {
     appData = null;
 
-    // Geçmiş tüm anahtarları tarayarak en dolu olanını (kaybolan veriyi) kurtar
-    const keysToCheck = ['kpss_tracker_v2', 'kpss_tracker_v3', 'kpss_tracker'];
-
-    for (const key of keysToCheck) {
-        if (!appData) {
-            try {
-                let raw = localStorage.getItem(key);
-                if (raw) {
-                    let parsed = JSON.parse(raw);
-                    let hasTask = false;
-                    for (let d of Object.values(parsed.days || {})) {
-                        if (((d.tekrar || []).length > 0) || ((d.yeniKonular || []).length > 0)) hasTask = true;
-                    }
-                    if (hasTask) appData = parsed;
-                }
-            } catch (e) { }
-        }
-    }
+    let raw = localStorage.getItem(STORAGE_KEY);
+    appData = raw ? JSON.parse(raw) : null;
 
     if (!appData) {
         // Hiçbirinde veri yoksa boş başlat
