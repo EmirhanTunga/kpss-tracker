@@ -27,10 +27,16 @@ self.addEventListener('activate', e => {
 
 // Fetch - Cache first, fallback to network
 self.addEventListener('fetch', e => {
+    // GET olmayan istekleri (örn. Firebase POST isteklerini) direkt ağdan çek
+    if (e.request.method !== 'GET' || e.request.url.includes('firestore.googleapis.com')) {
+        e.respondWith(fetch(e.request));
+        return;
+    }
+
     e.respondWith(
         caches.match(e.request).then(cached => {
             const networkFetch = fetch(e.request).then(response => {
-                if (response && response.status === 200) {
+                if (response && response.status === 200 && response.type === 'basic') {
                     const clone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
                 }
