@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDailyChallenge();
     setupQuestions();
     setupSyllabus();
+    setupFlashcards();
 });
 
 /* --- VERİ YÖNETİMİ --- */
@@ -281,6 +282,7 @@ function setupTabs() {
                 if (btn.dataset.tab === 'stats') renderStats();
                 if (btn.dataset.tab === 'questions') renderQuestions();
                 if (btn.dataset.tab === 'syllabus') renderSyllabus();
+                if (btn.dataset.tab === 'cards') renderFlashcards();
 
                 // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
                 const miniT = document.getElementById('miniTimer');
@@ -2099,3 +2101,150 @@ window.toggleSyllabusTopic = function(subj, topic, isChecked) {
         addPoints(-5); // İptal ederse puanı geri al
     }
 };
+
+/* --- 9. FLASHCARDS (BİLGİ KARTLARI) --- */
+let currentCardIndex = 0;
+let dueCards = [];
+
+function setupFlashcards() {
+    const btnSave = document.getElementById('btnSaveCard');
+    if (!btnSave) return;
+
+    if (!appData.flashcards) appData.flashcards = [];
+
+    btnSave.addEventListener('click', () => {
+        const subj = document.getElementById('cardSubject').value;
+        const front = document.getElementById('cardFront').value.trim();
+        const back = document.getElementById('cardBack').value.trim();
+
+        if (!front || !back) {
+            showToast('Lütfen ön ve arka yüzü doldurun.', false);
+            return;
+        }
+
+        appData.flashcards.push({
+            id: genId(),
+            subject: subj,
+            front: front,
+            back: back,
+            level: 0,
+            nextReview: new Date().toISOString().split('T')[0] // Bugün başlasın
+        });
+
+        saveData();
+        addPoints(2);
+        showToast('🃏 Kart eklendi!', true);
+        playSound('complete');
+
+        document.getElementById('cardFront').value = '';
+        document.getElementById('cardBack').value = '';
+        document.getElementById('cardFront').focus();
+
+        renderFlashcards();
+    });
+
+    const fcCard = document.getElementById('fcCard');
+    if (fcCard) {
+        fcCard.addEventListener('click', () => {
+            fcCard.classList.toggle('fc-flipped');
+            const actions = document.getElementById('fcActions');
+            if (fcCard.classList.contains('fc-flipped')) {
+                actions.style.opacity = '1';
+                actions.style.pointerEvents = 'all';
+            } else {
+                actions.style.opacity = '0';
+                actions.style.pointerEvents = 'none';
+            }
+        });
+    }
+
+    document.getElementById('btnCardFail')?.addEventListener('click', () => handleCardAction(0));
+    document.getElementById('btnCardSemi')?.addEventListener('click', () => handleCardAction(1));
+    document.getElementById('btnCardPass')?.addEventListener('click', () => handleCardAction(2));
+}
+
+function renderFlashcards() {
+    if (!appData.flashcards) appData.flashcards = [];
+    document.getElementById('fcTotalStat').textContent = appData.flashcards.length;
+
+    const today = new Date().toISOString().split('T')[0];
+    dueCards = appData.flashcards.filter(c => c.nextReview <= today);
+
+    const activeContainer = document.getElementById('activeCardContainer');
+    const emptyState = document.getElementById('fcEmptyState');
+
+    if (dueCards.length > 0) {
+        activeContainer.style.display = 'block';
+        emptyState.style.display = 'none';
+        currentCardIndex = 0;
+        showCurrentCard();
+    } else {
+        activeContainer.style.display = 'none';
+        emptyState.style.display = 'block';
+    }
+}
+
+function showCurrentCard() {
+    if (currentCardIndex >= dueCards.length) {
+        renderFlashcards(); // Yeniden kontrol et, bitmiş mi
+        return;
+    }
+
+    const card = dueCards[currentCardIndex];
+    document.getElementById('fcSubj').textContent = card.subject;
+    document.getElementById('fcQuestion').textContent = card.front;
+    document.getElementById('fcAnswer').textContent = card.back;
+
+    const fcCard = document.getElementById('fcCard');
+    fcCard.classList.remove('fc-flipped');
+    
+    const actions = document.getElementById('fcActions');
+    actions.style.opacity = '0';
+    actions.style.pointerEvents = 'none';
+}
+
+function handleCardAction(status) {
+    // status: 0 (Failed), 1 (Hard), 2 (Easy)
+    if (currentCardIndex >= dueCards.length) return;
+    const cardId = dueCards[currentCardIndex].id;
+    const card = appData.flashcards.find(c => c.id === cardId);
+    
+    if (status === 0) {
+        card.level = 0;
+    } else if (status === 1) {
+        card.level = Math.max(1, card.level);
+    } else if (status === 2) {
+        card.level += 1;
+    }
+
+    // Calculate next review (Aralıklı Tekrar Mantığı)
+    const nextDate = new Date();
+    let addDays = 1; // Default
+    if (card.level === 1) addDays = 2;
+    else if (card.level === 2) addDays = 4;
+    else if (card.level === 3) addDays = 8;
+    else if (card.level >= 4) addDays = 30; // Çok iyi öğrenilmiş
+
+    nextDate.setDate(nextDate.getDate() + addDays);
+    card.nextReview = nextDate.toISOString().split('T')[0];
+
+    saveData();
+    
+    if (status > 0) addPoints(1); // Bildiği zaman Puan ver
+    if (status === 2 && Math.random() > 0.8) confetti(20);
+
+    // Karta animasyon efekti (Silinme ya da sağa/sola)
+    const fcCard = document.getElementById('fcCard');
+    fcCard.style.transform = status === 0 ? 'translateX(-100px) rotateY(180deg) opacity(0)' : 'translateX(100px) rotateY(180deg) opacity(0)';
+    
+    setTimeout(() => {
+        fcCard.style.transition = 'none';
+        fcCard.style.transform = 'translateX(0) rotateY(0) opacity(1)';
+        
+        currentCardIndex++;
+        setTimeout(() => {
+            fcCard.style.transition = 'transform 0.6s';
+            showCurrentCard();
+        }, 50);
+    }, 300);
+}

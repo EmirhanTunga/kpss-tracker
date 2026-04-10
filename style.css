@@ -2499,3 +2499,4 @@ body::before {
 .ai-tip-info strong {
     color: var(--accent-blue);
 }
+.fc-flipped { transform: rotateY(180deg) !important; }

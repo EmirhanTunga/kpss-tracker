@@ -79,6 +79,9 @@
             <button class="tab-btn" data-tab="questions" id="tabQuestions">
                 <span class="tab-icon">❓</span><span>Soru Çözüm</span>
             </button>
+            <button class="tab-btn" data-tab="cards" id="tabCards">
+                <span class="tab-icon">🃏</span><span>Kartlar</span>
+            </button>
             <button class="tab-btn" data-tab="exams" id="tabExams">
                 <span class="tab-icon">📊</span><span>Deneme</span>
             </button>
@@ -395,6 +398,65 @@
                     <h3>📊 Son 7 Gün Çözülen Soru Dağılımı</h3>
                     <div class="q-chart-area" id="qChartArea">
                         <!-- JS bar grafik gelecek -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- CARDS TAB -->
+            <section class="tab-panel" id="panelCards">
+                <div class="cards-header" style="margin-bottom:20px;">
+                    <h2>🃏 Bilgi Kartları (Flashcards)</h2>
+                    <p>Önemli bilgileri soru-cevap şeklinde kaydet. Aralıklı tekrar sistemiyle zayıf olduğun kartları daha sık gör.</p>
+                </div>
+
+                <div class="card-entry-card" style="background:var(--bg-secondary); padding:20px; border-radius:12px; margin-bottom:25px;">
+                    <h3>➕ Yeni Kart Ekle</h3>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px; margin-top:15px;">
+                        <div class="input-group">
+                            <label>Ders</label>
+                            <select id="cardSubject" class="form-control" style="font-size:1rem; padding:10px;">
+                                <option value="Tarih">Tarih</option>
+                                <option value="Coğrafya">Coğrafya</option>
+                                <option value="Vatandaşlık">Vatandaşlık</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Soru (Ön Yüz)</label>
+                            <input type="text" id="cardFront" placeholder="Örn: İlk Türk İslam devleti hangisidir?">
+                        </div>
+                        <div class="input-group">
+                            <label>Cevap (Arka Yüz)</label>
+                            <input type="text" id="cardBack" placeholder="Örn: Karahanlılar">
+                        </div>
+                    </div>
+                    <button class="btn btn-save mt-2" id="btnSaveCard" style="width:100%; margin-top:15px;">💾 Kartı Kaydet</button>
+                </div>
+
+                <div class="flashcard-deck" style="display:flex; flex-direction:column; align-items:center; min-height:300px;">
+                    <!-- Active card will be rendered here -->
+                    <div id="activeCardContainer" style="width:100%; max-width:400px; perspective: 1000px; display:none;">
+                        <div class="fc-card" id="fcCard" style="width:100%; height:250px; position:relative; transition:transform 0.6s; transform-style:preserve-3d; cursor:pointer;">
+                            <div class="fc-front" style="position:absolute; width:100%; height:100%; backface-visibility:hidden; background:linear-gradient(135deg, var(--bg-secondary), var(--bg-elevated)); border:2px solid var(--primary); border-radius:16px; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px; text-align:center;">
+                                <span id="fcSubj" style="position:absolute; top:15px; left:20px; font-size:0.8rem; color:var(--primary); font-weight:bold;">Tarih</span>
+                                <h3 id="fcQuestion" style="font-size:1.4rem; color:var(--text-color); font-weight:bold;">Soru Yükleniyor...</h3>
+                                <p style="position:absolute; bottom:15px; font-size:0.8rem; color:var(--text-muted);">Cevabı görmek için karta tıkla</p>
+                            </div>
+                            <div class="fc-back" style="position:absolute; width:100%; height:100%; backface-visibility:hidden; background:linear-gradient(135deg, var(--primary), #4a8cc7); transform:rotateY(180deg); border-radius:16px; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:20px; text-align:center; color:white; overflow-y:auto;">
+                                <h3 id="fcAnswer" style="font-size:1.6rem; font-weight:800;">Cevap</h3>
+                            </div>
+                        </div>
+                        <div class="fc-actions mt-4" id="fcActions" style="display:flex; gap:10px; justify-content:space-between; opacity:0; transition:opacity 0.3s; pointer-events:none;">
+                            <button id="btnCardFail" style="flex:1; padding:12px; border-radius:8px; color:white; border:none; cursor:pointer; font-weight:bold; background-color:#e74c3c;">❌ Bilemedim</button>
+                            <button id="btnCardSemi" style="flex:1; padding:12px; border-radius:8px; color:white; border:none; cursor:pointer; font-weight:bold; background-color:#f39c12;">🤔 Zorlandım</button>
+                            <button id="btnCardPass" style="flex:1; padding:12px; border-radius:8px; color:white; border:none; cursor:pointer; font-weight:bold; background-color:#2ecc71;">✅ Bildim</button>
+                        </div>
+                    </div>
+                    
+                    <div id="fcEmptyState" style="text-align:center; margin-top:50px;">
+                        <span style="font-size:3rem;">🎉</span>
+                        <h3 style="margin-top:15px;">Tekrar Edilecek Kart Yok</h3>
+                        <p style="color:var(--text-muted); font-size:0.9rem; max-width:300px; margin:10px auto;">Bugünlük tüm tekrarlarını tamamladın veya henüz hiç kart eklemedin.</p>
+                        <p style="font-weight:bold; color:var(--primary); margin-top:10px;">Toplam Kayıtlı Kart: <span id="fcTotalStat">0</span></p>
                     </div>
                 </div>
             </section>
