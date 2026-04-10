@@ -70,8 +70,14 @@
             <button class="tab-btn" data-tab="pomodoro" id="tabPomodoro">
                 <span class="tab-icon">⏱️</span><span>Pomodoro</span>
             </button>
+            <button class="tab-btn" data-tab="syllabus" id="tabSyllabus">
+                <span class="tab-icon">📚</span><span>Müfredat</span>
+            </button>
             <button class="tab-btn" data-tab="weekly" id="tabWeekly">
                 <span class="tab-icon">📝</span><span>Program</span>
+            </button>
+            <button class="tab-btn" data-tab="questions" id="tabQuestions">
+                <span class="tab-icon">❓</span><span>Soru Çözüm</span>
             </button>
             <button class="tab-btn" data-tab="exams" id="tabExams">
                 <span class="tab-icon">📊</span><span>Deneme</span>
@@ -212,6 +218,22 @@
                 </div>
             </section>
 
+            <!-- SYLLABUS TAB -->
+            <section class="tab-panel" id="panelSyllabus">
+                <div class="syllabus-header">
+                    <h2>📚 KPSS Müfredat İlerleme</h2>
+                    <p>Tüm sınav konularını buradan takip edin, bitirdiğiniz konuları işaretleyerek genel ilerlemenizi (% olarak) görün.</p>
+                </div>
+                
+                <div class="syllabus-dashboard">
+                    <!-- Dinamik olarak JS ile çizilecek: Her ders için kart ve ilerleme barı -->
+                </div>
+                
+                <div class="syllabus-content mt-4" id="syllabusContent">
+                    <!-- Dinamik olarak JS ile akordeon yapısında tüm konular gelecek -->
+                </div>
+            </section>
+
             <!-- WEEKLY INPUT TAB -->
             <section class="tab-panel" id="panelWeekly">
                 <div class="weekly-header">
@@ -324,6 +346,56 @@
                 <div class="history-section hidden" id="historySection">
                     <h3>📁 Arşivlenmiş Haftalar</h3>
                     <div class="history-content" id="historyContent"></div>
+                </div>
+            </section>
+
+            <!-- QUESTIONS TAB -->
+            <section class="tab-panel" id="panelQuestions">
+                <div class="questions-header">
+                    <h2>❓ Soru Takibi</h2>
+                    <p>Günlük çözdüğün soruları ders bazlı gir, analiz et ve hedeflerine ulaş.</p>
+                </div>
+
+                <div class="exam-entry-card">
+                    <h3>➕ Yeni Soru Çözümü Ekle</h3>
+                    <div class="exam-form-grid" style="align-items: end;">
+                        <div class="input-group">
+                            <label>Ders</label>
+                            <select id="qSubject" class="form-control" style="font-size:1.05rem; padding:10px;">
+                                <option value="Tarih">🏺 Tarih</option>
+                                <option value="Coğrafya">🌍 Coğrafya</option>
+                                <option value="Vatandaşlık">⚖️ Vatandaşlık</option>
+                                <option value="Türkçe">📖 Türkçe</option>
+                                <option value="Matematik">🔢 Matematik</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 15px; width: 100%;">
+                            <div class="input-group" style="flex: 1;">
+                                <label>Doğru</label>
+                                <input type="number" id="qCorrect" min="0" placeholder="Örn: 20">
+                            </div>
+                            <div class="input-group" style="flex: 1;">
+                                <label>Yanlış</label>
+                                <input type="number" id="qWrong" min="0" placeholder="Örn: 3">
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-save mt-2" id="btnSaveQuestion">💾 Çözümü Kaydet</button>
+                </div>
+
+                <!-- Daily Questions List -->
+                <div class="questions-today mt-4" id="questionsTodayContainer">
+                    <h3>📅 Bugünkü Çözümler (<span id="qTotalToday">0</span> Soru)</h3>
+                    <div class="q-list" id="qTodayList">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                </div>
+
+                <div class="questions-stats mt-4">
+                    <h3>📊 Son 7 Gün Çözülen Soru Dağılımı</h3>
+                    <div class="q-chart-area" id="qChartArea">
+                        <!-- JS bar grafik gelecek -->
+                    </div>
                 </div>
             </section>
 

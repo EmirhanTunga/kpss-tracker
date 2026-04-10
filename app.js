@@ -61,6 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSpacedRepetition();
     renderExams();
     setupDailyChallenge();
+    setupQuestions();
+    setupSyllabus();
 });
 
 /* --- VERİ YÖNETİMİ --- */
@@ -101,6 +103,8 @@ function loadData() {
     if (!appData.spacedRep) appData.spacedRep = [];
     if (!appData.exams) appData.exams = [];
     if (!appData.heatmap) appData.heatmap = {};
+    if (!appData.questions) appData.questions = {};
+    if (!appData.syllabus) appData.syllabus = {};
 
     DAYS.forEach(d => {
         if (!appData.days[d.key]) appData.days[d.key] = { tekrar: [], yeniKonular: [] };
@@ -275,6 +279,8 @@ function setupTabs() {
             if (panel) {
                 panel.classList.add('active');
                 if (btn.dataset.tab === 'stats') renderStats();
+                if (btn.dataset.tab === 'questions') renderQuestions();
+                if (btn.dataset.tab === 'syllabus') renderSyllabus();
 
                 // Eğer pomodoro çalışıyorsa ve tab pomodoro değilse mini timeri göster
                 const miniT = document.getElementById('miniTimer');
@@ -1717,3 +1723,360 @@ function renderAIAdvice() {
         </div>
     `).join('');
 }
+
+/* --- SORU TAKİBİ (QUESTIONS TRACKER) --- */
+function setupQuestions() {
+    const btnSave = document.getElementById('btnSaveQuestion');
+    console.log("Setting up questions, btn is: ", btnSave);
+    if (!btnSave) return;
+
+    btnSave.addEventListener('click', () => {
+        const subject = document.getElementById('qSubject').value;
+        const correct = parseInt(document.getElementById('qCorrect').value) || 0;
+        const wrong = parseInt(document.getElementById('qWrong').value) || 0;
+
+
+        if (correct === 0 && wrong === 0) {
+            showToast('Lütfen en az bir soru sayısı girin.');
+            return;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        if (!appData.questions[todayStr]) {
+            appData.questions[todayStr] = [];
+        }
+
+        appData.questions[todayStr].push({
+            id: genId(),
+            subject,
+            correct,
+            wrong,
+
+            total: correct + wrong,
+            time: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        });
+
+        saveData();
+        addPoints(5); // 5 points for solving questions
+        showToast('🎯 Soru çözümü kaydedildi!', true);
+        playSound('complete');
+        
+        // Reset form
+        document.getElementById('qCorrect').value = '';
+        document.getElementById('qWrong').value = '';
+
+
+        renderQuestions();
+    });
+
+    renderQuestions();
+}
+
+function renderQuestions() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayQ = appData.questions[todayStr] || [];
+    const listContainer = document.getElementById('qTodayList');
+    
+    if (!listContainer) return;
+    
+    if (todayQ.length === 0) {
+        listContainer.innerHTML = `<div class="empty-state"><span class="empty-icon">📝</span><p>Bugün henüz soru çözümü girmediniz.</p></div>`;
+        document.getElementById('qTotalToday').textContent = '0';
+    } else {
+        let total = 0;
+        let html = '';
+        todayQ.forEach(q => {
+            total += q.total;
+            const successRate = q.total > 0 ? Math.round((q.correct / q.total) * 100) : 0;
+            html += `
+                <div class="q-item" style="background:var(--bg-secondary); margin-bottom:10px; padding:15px; border-radius:12px; border-left:4px solid var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                    <div class="q-item-header" style="display:flex; flex-direction:column;">
+                        <strong class="q-subj" style="font-size:1.1rem; color:var(--text-color);">${escapeHtml(q.subject)}</strong>
+                        <span class="q-time" style="font-size:0.8rem; color:var(--text-muted);">${q.time}</span>
+                    </div>
+                    <div class="q-item-stats" style="display:flex; gap:15px; font-size:0.95rem; text-align:center;">
+                        <div class="q-stat q-correct" title="Doğru"><span style="color:#2ecc71; font-weight:bold;">✓ ${q.correct}</span></div>
+                        <div class="q-stat q-wrong" title="Yanlış"><span style="color:#e74c3c; font-weight:bold;">✗ ${q.wrong}</span></div>
+                        ${q.empty !== undefined ? `<div class="q-stat q-empty" title="Boş"><span style="color:#95a5a6; font-weight:bold;">○ ${q.empty}</span></div>` : ''}
+                        <div class="q-stat q-rate" title="Başarı Oranı" style="font-weight:bold; color:var(--primary);">%${successRate}</div>
+                    </div>
+                    <button class="btn-link" onclick="deleteQuestion('${q.id}')" style="color:#e74c3c; background:none; border:none; cursor:pointer;" title="Sil">🗑️</button>
+                </div>
+            `;
+        });
+        listContainer.innerHTML = html;
+        document.getElementById('qTotalToday').textContent = total;
+    }
+
+    renderQuestionChart();
+}
+
+function deleteQuestion(id) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayQ = appData.questions[todayStr];
+    if (todayQ) {
+        if(confirm("Bu soru kaydını silmek istediğine emin misin?")){
+            appData.questions[todayStr] = todayQ.filter(q => q.id !== id);
+            saveData();
+            renderQuestions();
+        }
+    }
+}
+
+function renderQuestionChart() {
+    const chartArea = document.getElementById('qChartArea');
+    if (!chartArea) return;
+    
+    // Son 7 günün tarihlerini bul
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last7Days.push(d.toISOString().split('T')[0]);
+    }
+    
+    let maxTotal = 0;
+    const chartData = last7Days.map(dateStr => {
+        const dayQs = appData.questions[dateStr] || [];
+        let t = 0;
+        dayQs.forEach(q => t += q.total);
+        if (t > maxTotal) maxTotal = t;
+        
+        // short date formatting for x-axis
+        const splitDate = dateStr.split('-');
+        const shortDate = `${splitDate[2]}/${splitDate[1]}`;
+        
+        return { date: shortDate, total: t };
+    });
+    
+    if (maxTotal === 0) {
+        chartArea.innerHTML = `<div class="empty-state"><span class="empty-icon">📊</span><p>Son 7 güne ait veri yok.</p></div>`;
+        return;
+    }
+    
+    let html = `<div class="q-chart-bars" style="display:flex; justify-content:space-between; align-items:flex-end; height:200px; padding:15px 0 0 0; border-bottom:1px solid var(--border-color); margin-top:20px;">`;
+    
+    chartData.forEach(d => {
+        const heightPct = (d.total / maxTotal) * 100;
+        html += `
+            <div class="q-bar-wrapper" style="display:flex; flex-direction:column; align-items:center; width: 12%; height:100%; justify-content:flex-end;">
+                <span style="font-size:0.8rem; color:var(--text-color); font-weight:bold; margin-bottom:6px;">${d.total > 0 ? d.total : ''}</span>
+                <div class="q-bar" style="width:100%; height:${heightPct}%; background:linear-gradient(to top, var(--primary), #5a75ff); border-radius:6px 6px 0 0; min-height:${d.total > 0 ? '4px' : '0'}; transition: height 0.5s ease;"></div>
+                <span style="font-size:0.75rem; color:var(--text-muted); margin-top:8px;">${d.date}</span>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    chartArea.innerHTML = html;
+}
+
+/* --- KPSS MÜFREDAT KONTROLÜ (SYLLABUS TRACKER) --- */
+
+const KPSS_SYLLABUS = [
+    {
+        subject: "Tarih",
+        icon: "🏺",
+        topics: [
+            "İslam Öncesi Türk Tarihi",
+            "İlk Türk İslam Devletleri",
+            "Osmanlı Devleti Kuruluş ve Yükselme Dönemleri",
+            "Osmanlı Devleti Duraklama ve Gerileme Dönemleri",
+            "Osmanlı Kültür ve Medeniyeti",
+            "20. Yüzyıl Başlarında Osmanlı Devleti",
+            "Milli Mücadele Hazırlık Dönemi",
+            "Kurtuluş Savaşı Muharebeler",
+            "Atatürk İlke ve İnkılapları",
+            "Atatürk Dönemi Türk Dış Politikası",
+            "Çağdaş Türk ve Dünya Tarihi"
+        ]
+    },
+    {
+        subject: "Coğrafya",
+        icon: "🌍",
+        topics: [
+            "Türkiye'nin Coğrafi Konumu",
+            "Türkiye'nin Yer Şekilleri ve Su Örtüsü",
+            "Türkiye'nin İklimi ve Bitki Örtüsü",
+            "Türkiye'de Nüfus ve Yerleşme",
+            "Türkiye'de Tarım ve Hayvancılık",
+            "Türkiye'de Ormancılık ve Madenler",
+            "Türkiye'de Enerji Kaynakları",
+            "Türkiye'de Sanayi",
+            "Türkiye'de Ulaşım, Turizm ve Ticaret",
+            "Türkiye'nin Bölgesel Coğrafyası"
+        ]
+    },
+    {
+        subject: "Vatandaşlık",
+        icon: "⚖️",
+        topics: [
+            "Hukukun Temel Kavramları",
+            "Devlet Biçimleri ve Demokrasi",
+            "Anayasa Hukukuna Giriş",
+            "Temel Hak ve Ödevler",
+            "Yasama",
+            "Yürütme",
+            "Yargı",
+            "İdare Hukuku",
+            "Ulusal ve Uluslararası Kuruluşlar"
+        ]
+    },
+    {
+        subject: "Türkçe",
+        icon: "📖",
+        topics: [
+            "Sözcükte Anlam",
+            "Cümlede Anlam",
+            "Paragrafta Anlam",
+            "Ses Bilgisi",
+            "Sözcük Türleri",
+            "Sözcükte Yapı ve Ekler",
+            "Cümlenin Ögeleri",
+            "Cümle Türleri",
+            "Yazım Kuralları",
+            "Noktalama İşaretleri",
+            "Sözel Mantık"
+        ]
+    },
+    {
+        subject: "Matematik",
+        icon: "🔢",
+        topics: [
+            "Temel Kavramlar ve Sayılar",
+            "Bölme - Bölünebilme",
+            "Rasyonel Sayılar",
+            "Üslü Sayılar",
+            "Köklü Sayılar",
+            "Çarpanlara Ayırma",
+            "Birinci Dereceden Denklemler",
+            "Basit Eşitsizlikler ve Mutlak Değer",
+            "Oran - Orantı",
+            "Problemler",
+            "Kümeler",
+            "Fonksiyonlar",
+            "Permütasyon, Kombinasyon, Olasılık",
+            "Sayısal Mantık",
+            "Geometri"
+        ]
+    }
+];
+
+function setupSyllabus() {
+    renderSyllabus();
+}
+
+function renderSyllabus() {
+    const dashboard = document.querySelector('.syllabus-dashboard');
+    const content = document.getElementById('syllabusContent');
+    
+    if (!dashboard || !content) return;
+    
+    if (!appData.syllabus) appData.syllabus = {};
+    
+    let dashHtml = '';
+    let contentHtml = '';
+    
+    let totalTopics = 0;
+    let completedTotal = 0;
+
+    KPSS_SYLLABUS.forEach(category => {
+        const subj = category.subject;
+        const topics = category.topics;
+        
+        let completedInSubj = 0;
+        
+        if (!appData.syllabus[subj]) {
+            appData.syllabus[subj] = {};
+        }
+
+        let topicHtml = `<div class="syllabus-category" style="margin-bottom: 20px; background: var(--bg-secondary); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color);">
+            <div class="syllabus-cat-header" style="padding: 15px 20px; background: rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                <h3 style="margin: 0; font-size: 1.1rem; align-items:center; display:flex; gap:10px;"><span>${category.icon}</span> ${subj}</h3>
+                <span class="subj-progress-text" style="font-weight: bold; color: var(--primary); font-size: 1.2rem;"></span>
+            </div>
+            <div class="syllabus-cat-body" style="padding: 5px 20px 15px 20px;">`;
+            
+        topics.forEach((topic, idx) => {
+            totalTopics++;
+            const isCompleted = appData.syllabus[subj][topic] || false;
+            if (isCompleted) {
+                completedInSubj++;
+                completedTotal++;
+            }
+            
+            const checkId = `syl_${subj}_${idx}`;
+            
+            topicHtml += `
+                <div class="syl-topic-item" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); transition: opacity 0.3s;">
+                    <label class="task-checkbox">
+                        <input type="checkbox" id="${checkId}" ${isCompleted ? 'checked' : ''} onchange="toggleSyllabusTopic('${subj}', '${topic}', this.checked)">
+                        <span class="checkmark"></span>
+                    </label>
+                    <label for="${checkId}" style="cursor:pointer; margin-left:12px; flex:1; ${isCompleted ? 'text-decoration: line-through; opacity:0.4;' : ''}">${topic}</label>
+                </div>
+            `;
+        });
+        
+        topicHtml += `</div></div>`;
+        contentHtml += topicHtml;
+        
+        const pct = Math.round((completedInSubj / topics.length) * 100);
+        dashHtml += `
+            <div class="syl-dash-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 12px; display:flex; flex-direction:column; gap:8px; border: 1px solid var(--border-color);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color:var(--text-color);">${category.icon} ${subj}</strong>
+                    <span style="font-size:0.85rem; color:var(--text-muted);">${completedInSubj}/${topics.length}</span>
+                </div>
+                <div class="progress-bar" style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                    <div class="progress-fill" style="width: ${pct}%; height: 100%; background: var(--primary); transition: width 0.5s ease;"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    const overallPct = totalTopics > 0 ? Math.round((completedTotal / totalTopics) * 100) : 0;
+    
+    dashboard.innerHTML = `
+        <div class="syl-overall" style="text-align:center; padding: 25px; background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%); border-radius: 12px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <p style="margin:0; opacity:0.9; font-size:0.95rem; text-transform: uppercase; letter-spacing:1px;">Genel KPSS İlerlemeniz</p>
+            <h2 style="margin:10px 0 0 0; font-size:2.8rem; font-weight:900; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">%${overallPct}</h2>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+            ${dashHtml}
+        </div>
+    `;
+    
+    content.innerHTML = contentHtml;
+    
+    setTimeout(() => {
+        const headers = document.querySelectorAll('.syllabus-cat-header');
+        let i = 0;
+        KPSS_SYLLABUS.forEach(cat => {
+            if(headers[i]) {
+                const cpt = Object.values(appData.syllabus[cat.subject] || {}).filter(Boolean).length;
+                const pct = Math.round((cpt / cat.topics.length) * 100);
+                headers[i].querySelector('.subj-progress-text').textContent = `%${pct}`;
+            }
+            i++;
+        });
+    }, 50);
+}
+
+window.toggleSyllabusTopic = function(subj, topic, isChecked) {
+    if (!appData.syllabus[subj]) appData.syllabus[subj] = {};
+    appData.syllabus[subj][topic] = isChecked;
+    
+    saveData();
+    renderSyllabus(); 
+    
+    if (isChecked) {
+        playSound('complete');
+        addPoints(5); 
+        showToast(`Tebrikler! "${topic}" konusu tamamlandı.`, true);
+        if (Math.random() > 0.7) confetti(40); // Rastgele konfeti
+    } else {
+        addPoints(-5); // İptal ederse puanı geri al
+    }
+};
