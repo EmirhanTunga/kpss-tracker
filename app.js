@@ -43,7 +43,7 @@ let pomoMode = 'work'; // work, shortBreak, longBreak
 let pomoIsRunning = false;
 
 /* --- BAŞLANGIÇ (INIT) --- */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Hide main app container initially
     const appContainer = document.querySelector('.app-container');
     const loginScreen = document.getElementById('loginScreen');
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto login check
     const savedUser = localStorage.getItem('kpss_current_user');
     if (savedUser && VALID_USERS[savedUser]) {
-        handleLoginSuccess(savedUser);
+        await handleLoginSuccess(savedUser);
     } else {
         if(loginScreen) loginScreen.style.display = 'flex';
     }
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Login logic
     const btnLogin = document.getElementById('btnLogin');
     if(btnLogin) {
-        btnLogin.addEventListener('click', () => {
+        btnLogin.addEventListener('click', async () => {
             const email = document.getElementById('loginEmail').value.trim();
             const pass = document.getElementById('loginPassword').value.trim();
             const err = document.getElementById('loginError');
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (VALID_USERS[email] && VALID_USERS[email] === pass) {
                 err.style.display = 'none';
                 localStorage.setItem('kpss_current_user', email);
-                handleLoginSuccess(email);
+                await handleLoginSuccess(email);
             } else {
                 err.style.display = 'block';
             }
@@ -85,14 +85,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function handleLoginSuccess(email) {
+async function handleLoginSuccess(email) {
     const loginScreen = document.getElementById('loginScreen');
     const appContainer = document.querySelector('.app-container');
-    if(loginScreen) loginScreen.style.display = 'none';
-    if(appContainer) appContainer.style.display = 'block';
     
     // Set dynamic storage key
     STORAGE_KEY = `kpss_tracker_v2_${email}`;
+
+    if (window.firebaseSyncActive) {
+        await window.loadFromFirebase(email);
+    }
+
+    if(loginScreen) loginScreen.style.display = 'none';
+    if(appContainer) appContainer.style.display = 'block';
+
 
     loadData();
     setupBasicUI();
@@ -156,6 +162,10 @@ function loadData() {
 
 function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    const uEmail = localStorage.getItem('kpss_current_user');
+    if (window.firebaseSyncActive && uEmail) {
+        window.syncToFirebase(uEmail, appData);
+    }
 }
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
@@ -310,7 +320,7 @@ function registerServiceWorker() {
 /* --- TAB YÖNETİMİ --- */
 function setupTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -348,7 +358,7 @@ function setupDaySelector() {
     }).join('');
 
     container.querySelectorAll('.day-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             container.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedDay = btn.dataset.day;
@@ -627,7 +637,7 @@ function setupPomodoro() {
     }
 
     document.querySelectorAll('.pomo-mode').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             if (pomoIsRunning) return showToast("Zamanlayıcı çalışırken mod değiştiremezsiniz.");
             document.querySelectorAll('.pomo-mode').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
