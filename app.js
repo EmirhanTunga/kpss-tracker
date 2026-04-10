@@ -6,8 +6,8 @@ const HISTORY_KEY = 'kpss_tracker_history';
 const DRAFT_KEY = 'kpss_tracker_drafts';
 
 const VALID_USERS = {
-    'emirhan@kpss.com': '1234',
-    'test@kpss.com': '123'
+
+    'emirhantunga27@outlook.com': '123456',
 };
 const EXAM_DATE = new Date(2026, 9, 4); // 4 Ekim 2026
 
@@ -47,24 +47,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Hide main app container initially
     const appContainer = document.querySelector('.app-container');
     const loginScreen = document.getElementById('loginScreen');
-    if(appContainer) appContainer.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'none';
 
     // Auto login check
     const savedUser = localStorage.getItem('kpss_current_user');
     if (savedUser && VALID_USERS[savedUser]) {
         await handleLoginSuccess(savedUser);
     } else {
-        if(loginScreen) loginScreen.style.display = 'flex';
+        if (loginScreen) loginScreen.style.display = 'flex';
     }
 
     // Login logic
     const btnLogin = document.getElementById('btnLogin');
-    if(btnLogin) {
+    if (btnLogin) {
         btnLogin.addEventListener('click', async () => {
             const email = document.getElementById('loginEmail').value.trim();
             const pass = document.getElementById('loginPassword').value.trim();
             const err = document.getElementById('loginError');
-            
+
             if (VALID_USERS[email] && VALID_USERS[email] === pass) {
                 err.style.display = 'none';
                 localStorage.setItem('kpss_current_user', email);
@@ -74,10 +74,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-    
+
     // Logout logic
     const btnLogout = document.getElementById('btnLogout');
-    if(btnLogout) {
+    if (btnLogout) {
         btnLogout.addEventListener('click', () => {
             localStorage.removeItem('kpss_current_user');
             location.reload();
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function handleLoginSuccess(email) {
     const loginScreen = document.getElementById('loginScreen');
     const appContainer = document.querySelector('.app-container');
-    
+
     // Set dynamic storage key
     STORAGE_KEY = `kpss_tracker_v2_${email}`;
 
@@ -96,8 +96,8 @@ async function handleLoginSuccess(email) {
         await window.loadFromFirebase(email);
     }
 
-    if(loginScreen) loginScreen.style.display = 'none';
-    if(appContainer) appContainer.style.display = 'block';
+    if (loginScreen) loginScreen.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'block';
 
 
     loadData();
@@ -1685,7 +1685,7 @@ function renderAIAdvice() {
     let totalQ = 0, totalCorrect = 0, totalWrong = 0;
     const qBySubj = {};
     const dDate = new Date();
-    
+
     for (let i = 0; i < 3; i++) {
         const dStr = new Date(dDate).toISOString().split('T')[0];
         const dayQ = appData.questions[dStr] || [];
@@ -1712,12 +1712,12 @@ function renderAIAdvice() {
                 }
             }
         }
-        
+
         if (totalQ > 150) {
-             tips.push({ icon: '🚀', type: 'success', title: 'Tempo Muazzam!', text: `Son 3 günde toplam ${totalQ} soru çözdün. Sınav maratonunda bu hız sana derece getirir.` });
+            tips.push({ icon: '🚀', type: 'success', title: 'Tempo Muazzam!', text: `Son 3 günde toplam ${totalQ} soru çözdün. Sınav maratonunda bu hız sana derece getirir.` });
         }
     } else {
-         tips.push({ icon: '❓', type: 'warning', title: 'Soru Çözümü Eksik', text: 'Son 3 gündür sisteme hiç soru çözümü girmemişsin. Pratik yapmak, öğrenmeyi kalıcı kılar.' });
+        tips.push({ icon: '❓', type: 'warning', title: 'Soru Çözümü Eksik', text: 'Son 3 gündür sisteme hiç soru çözümü girmemişsin. Pratik yapmak, öğrenmeyi kalıcı kılar.' });
     }
 
     // 2. Müfredat Takibi Analizi
@@ -1725,10 +1725,10 @@ function renderAIAdvice() {
         let maxDone = 0, minDone = 999, maxSubj = '', minSubj = '';
         Object.keys(appData.syllabus).forEach(subj => {
             const doneCnt = Object.values(appData.syllabus[subj]).filter(Boolean).length;
-            if(doneCnt > maxDone) { maxDone = doneCnt; maxSubj = subj; }
-            if(doneCnt < minDone) { minDone = doneCnt; minSubj = subj; }
+            if (doneCnt > maxDone) { maxDone = doneCnt; maxSubj = subj; }
+            if (doneCnt < minDone) { minDone = doneCnt; minSubj = subj; }
         });
-        
+
         if (minDone === 0 && minSubj !== '') {
             tips.push({ icon: '📚', type: 'warning', title: 'İhmal Edilen Ders', text: `Müfredat listene göre <strong>${minSubj}</strong> dersine neredeyse hiç başlamamışsın. Programına eklemelisin.` });
         }
@@ -1775,11 +1775,11 @@ function renderAIAdvice() {
     }
 
     // Önceliklendirme
-    tips.sort((a,b) => {
-        const w = { 'warning':3, 'info':2, 'success':1 };
+    tips.sort((a, b) => {
+        const w = { 'warning': 3, 'info': 2, 'success': 1 };
         return w[b.type] - w[a.type];
     });
-    
+
     // max 5 limit
     const displayTips = tips.slice(0, 5);
 
@@ -1812,7 +1812,7 @@ function setupQuestions() {
         }
 
         const todayStr = new Date().toISOString().split('T')[0];
-        
+
         if (!appData.questions[todayStr]) {
             appData.questions[todayStr] = [];
         }
@@ -1831,7 +1831,7 @@ function setupQuestions() {
         addPoints(5); // 5 points for solving questions
         showToast('🎯 Soru çözümü kaydedildi!', true);
         playSound('complete');
-        
+
         // Reset form
         document.getElementById('qCorrect').value = '';
         document.getElementById('qWrong').value = '';
@@ -1847,9 +1847,9 @@ function renderQuestions() {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayQ = appData.questions[todayStr] || [];
     const listContainer = document.getElementById('qTodayList');
-    
+
     if (!listContainer) return;
-    
+
     if (todayQ.length === 0) {
         listContainer.innerHTML = `<div class="empty-state"><span class="empty-icon">📝</span><p>Bugün henüz soru çözümü girmediniz.</p></div>`;
         document.getElementById('qTotalToday').textContent = '0';
@@ -1886,7 +1886,7 @@ function deleteQuestion(id) {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayQ = appData.questions[todayStr];
     if (todayQ) {
-        if(confirm("Bu soru kaydını silmek istediğine emin misin?")){
+        if (confirm("Bu soru kaydını silmek istediğine emin misin?")) {
             appData.questions[todayStr] = todayQ.filter(q => q.id !== id);
             saveData();
             renderQuestions();
@@ -1897,7 +1897,7 @@ function deleteQuestion(id) {
 function renderQuestionChart() {
     const chartArea = document.getElementById('qChartArea');
     if (!chartArea) return;
-    
+
     // Son 7 günün tarihlerini bul
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
@@ -1905,28 +1905,28 @@ function renderQuestionChart() {
         d.setDate(d.getDate() - i);
         last7Days.push(d.toISOString().split('T')[0]);
     }
-    
+
     let maxTotal = 0;
     const chartData = last7Days.map(dateStr => {
         const dayQs = appData.questions[dateStr] || [];
         let t = 0;
         dayQs.forEach(q => t += q.total);
         if (t > maxTotal) maxTotal = t;
-        
+
         // short date formatting for x-axis
         const splitDate = dateStr.split('-');
         const shortDate = `${splitDate[2]}/${splitDate[1]}`;
-        
+
         return { date: shortDate, total: t };
     });
-    
+
     if (maxTotal === 0) {
         chartArea.innerHTML = `<div class="empty-state"><span class="empty-icon">📊</span><p>Son 7 güne ait veri yok.</p></div>`;
         return;
     }
-    
+
     let html = `<div class="q-chart-bars" style="display:flex; justify-content:space-between; align-items:flex-end; height:200px; padding:15px 0 0 0; border-bottom:1px solid var(--border-color); margin-top:20px;">`;
-    
+
     chartData.forEach(d => {
         const heightPct = (d.total / maxTotal) * 100;
         html += `
@@ -1937,7 +1937,7 @@ function renderQuestionChart() {
             </div>
         `;
     });
-    
+
     html += `</div>`;
     chartArea.innerHTML = html;
 }
@@ -2040,23 +2040,23 @@ function setupSyllabus() {
 function renderSyllabus() {
     const dashboard = document.querySelector('.syllabus-dashboard');
     const content = document.getElementById('syllabusContent');
-    
+
     if (!dashboard || !content) return;
-    
+
     if (!appData.syllabus) appData.syllabus = {};
-    
+
     let dashHtml = '';
     let contentHtml = '';
-    
+
     let totalTopics = 0;
     let completedTotal = 0;
 
     KPSS_SYLLABUS.forEach(category => {
         const subj = category.subject;
         const topics = category.topics;
-        
+
         let completedInSubj = 0;
-        
+
         if (!appData.syllabus[subj]) {
             appData.syllabus[subj] = {};
         }
@@ -2067,7 +2067,7 @@ function renderSyllabus() {
                 <span class="subj-progress-text" style="font-weight: bold; color: var(--primary); font-size: 1.2rem;"></span>
             </div>
             <div class="syllabus-cat-body" style="padding: 5px 20px 15px 20px;">`;
-            
+
         topics.forEach((topic, idx) => {
             totalTopics++;
             const isCompleted = appData.syllabus[subj][topic] || false;
@@ -2075,9 +2075,9 @@ function renderSyllabus() {
                 completedInSubj++;
                 completedTotal++;
             }
-            
+
             const checkId = `syl_${subj}_${idx}`;
-            
+
             topicHtml += `
                 <div class="syl-topic-item" style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); transition: opacity 0.3s;">
                     <label class="task-checkbox">
@@ -2088,10 +2088,10 @@ function renderSyllabus() {
                 </div>
             `;
         });
-        
+
         topicHtml += `</div></div>`;
         contentHtml += topicHtml;
-        
+
         const pct = Math.round((completedInSubj / topics.length) * 100);
         dashHtml += `
             <div class="syl-dash-card" style="background: var(--bg-secondary); padding: 15px; border-radius: 12px; display:flex; flex-direction:column; gap:8px; border: 1px solid var(--border-color);">
@@ -2105,9 +2105,9 @@ function renderSyllabus() {
             </div>
         `;
     });
-    
+
     const overallPct = totalTopics > 0 ? Math.round((completedTotal / totalTopics) * 100) : 0;
-    
+
     dashboard.innerHTML = `
         <div class="syl-overall" style="text-align:center; padding: 25px; background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%); border-radius: 12px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
             <p style="margin:0; opacity:0.9; font-size:0.95rem; text-transform: uppercase; letter-spacing:1px;">Genel KPSS İlerlemeniz</p>
@@ -2117,14 +2117,14 @@ function renderSyllabus() {
             ${dashHtml}
         </div>
     `;
-    
+
     content.innerHTML = contentHtml;
-    
+
     setTimeout(() => {
         const headers = document.querySelectorAll('.syllabus-cat-header');
         let i = 0;
         KPSS_SYLLABUS.forEach(cat => {
-            if(headers[i]) {
+            if (headers[i]) {
                 const cpt = Object.values(appData.syllabus[cat.subject] || {}).filter(Boolean).length;
                 const pct = Math.round((cpt / cat.topics.length) * 100);
                 headers[i].querySelector('.subj-progress-text').textContent = `%${pct}`;
@@ -2134,16 +2134,16 @@ function renderSyllabus() {
     }, 50);
 }
 
-window.toggleSyllabusTopic = function(subj, topic, isChecked) {
+window.toggleSyllabusTopic = function (subj, topic, isChecked) {
     if (!appData.syllabus[subj]) appData.syllabus[subj] = {};
     appData.syllabus[subj][topic] = isChecked;
-    
+
     saveData();
-    renderSyllabus(); 
-    
+    renderSyllabus();
+
     if (isChecked) {
         playSound('complete');
-        addPoints(5); 
+        addPoints(5);
         showToast(`Tebrikler! "${topic}" konusu tamamlandı.`, true);
         if (Math.random() > 0.7) confetti(40); // Rastgele konfeti
     } else {
@@ -2246,7 +2246,7 @@ function showCurrentCard() {
 
     const fcCard = document.getElementById('fcCard');
     fcCard.classList.remove('fc-flipped');
-    
+
     const actions = document.getElementById('fcActions');
     actions.style.opacity = '0';
     actions.style.pointerEvents = 'none';
@@ -2257,7 +2257,7 @@ function handleCardAction(status) {
     if (currentCardIndex >= dueCards.length) return;
     const cardId = dueCards[currentCardIndex].id;
     const card = appData.flashcards.find(c => c.id === cardId);
-    
+
     if (status === 0) {
         card.level = 0;
     } else if (status === 1) {
@@ -2278,18 +2278,18 @@ function handleCardAction(status) {
     card.nextReview = nextDate.toISOString().split('T')[0];
 
     saveData();
-    
+
     if (status > 0) addPoints(1); // Bildiği zaman Puan ver
     if (status === 2 && Math.random() > 0.8) confetti(20);
 
     // Karta animasyon efekti (Silinme ya da sağa/sola)
     const fcCard = document.getElementById('fcCard');
     fcCard.style.transform = status === 0 ? 'translateX(-100px) rotateY(180deg) opacity(0)' : 'translateX(100px) rotateY(180deg) opacity(0)';
-    
+
     setTimeout(() => {
         fcCard.style.transition = 'none';
         fcCard.style.transform = 'translateX(0) rotateY(0) opacity(1)';
-        
+
         currentCardIndex++;
         setTimeout(() => {
             fcCard.style.transition = 'transform 0.6s';
