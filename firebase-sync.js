@@ -1,4 +1,7 @@
-// !! BURAYA FIREBASE AYARLARINI YAPIŞTIR !!
+// Firebase Cloud Sync Modülü - KPSS Başarı Rehberi
+// Son güncelleme: 11 Nisan 2026
+// Firestore API: https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=kpss-tracker
+
 const firebaseConfig = {
     apiKey: "AIzaSyA88xSweyh7b3J6tymeB8s84R_G0Y2YLMs",
     authDomain: "kpss-tracker.firebaseapp.com",
