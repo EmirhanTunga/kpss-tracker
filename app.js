@@ -1028,11 +1028,21 @@ function setupFormActions() {
         const tekrarByDay = parseBulkText(tekrarText);
         const yeniByDay = parseBulkText(yeniText);
 
+        // Hangi günlerin textarea'da başlık olarak geçtiğini tespit et
+        const tekrarMentioned = getListedDayKeys(tekrarText);
+        const yeniMentioned = getListedDayKeys(yeniText);
+
         DAYS.forEach(day => {
             const oldT = appData.days[day.key].tekrar || [];
             const oldY = appData.days[day.key].yeniKonular || [];
-            appData.days[day.key].tekrar = mapToTasks(tekrarByDay[day.key] || [], oldT);
-            appData.days[day.key].yeniKonular = mapToTasks(yeniByDay[day.key] || [], oldY);
+
+            // Sadece o gün textarea'da açıkça belirtilmişse güncelle; yoksa mevcut veriyi koru
+            if (tekrarMentioned.has(day.key)) {
+                appData.days[day.key].tekrar = mapToTasks(tekrarByDay[day.key] || [], oldT);
+            }
+            if (yeniMentioned.has(day.key)) {
+                appData.days[day.key].yeniKonular = mapToTasks(yeniByDay[day.key] || [], oldY);
+            }
         });
 
         saveData();
@@ -1069,10 +1079,26 @@ function setupFormActions() {
     });
 }
 
+// Textarea metninde hangi gün başlıklarının geçtiğini tespit eder
+function getListedDayKeys(text) {
+    const found = new Set();
+    if (!text || !text.trim()) return found;
+    for (const rawLine of text.split('\n')) {
+        const key = detectDayHeader(rawLine);
+        if (key) found.add(key);
+    }
+    return found;
+}
+
 function detectDayHeader(rawLine) {
-    const trimmed = rawLine.trim().toLowerCase();
+    const trimmedOrig = rawLine.trim();
+    const trimmedLower = trimmedOrig.toLocaleLowerCase('tr-TR');
     for (const d of DAYS) {
-        if (d.key === trimmed || d.label.toLowerCase() === trimmed || d.short.toLowerCase() === trimmed) return d.key;
+        if (
+            d.key === trimmedOrig.toLowerCase() ||
+            d.label.toLocaleLowerCase('tr-TR') === trimmedLower ||
+            d.short.toLocaleLowerCase('tr-TR') === trimmedLower
+        ) return d.key;
     }
     return null;
 }
